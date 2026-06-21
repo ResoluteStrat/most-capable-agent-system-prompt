@@ -10,6 +10,21 @@ Paste this prompt into your coding agent of choice - Claude Code, Codex, Cursor,
 
 ![Most Capable Agent System Architecture](most_capable_agent_system_architecture.svg)
 
+## Reference implementation
+
+[`agentos/`](agentos/) is a working, stdlib-only reference build produced by running
+this prompt in harness-wrapper mode. It proves the full closed loop end-to-end —
+**goal → task graph → execution → verification → memory → visibility → learning** —
+with a file-first project model, a SQLite control plane, an independent verifier, a
+deny-first safety policy, layered memory, a bounded self-improvement loop, and a
+6-case eval harness. Try it:
+
+```bash
+cd agentos && python -m aos selftest   # exit 0 = the loop is healthy
+```
+
+See [`agentos/README.md`](agentos/README.md) and [`agentos/ROADMAP.md`](agentos/ROADMAP.md).
+
 ## The Prompt
 
 ```text

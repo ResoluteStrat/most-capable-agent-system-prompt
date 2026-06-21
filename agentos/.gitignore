@@ -1,0 +1,14 @@
+# Runtime artifacts — regenerable; files are canonical, the DB is derived.
+state/agentos.db
+state/agentos.db-wal
+state/agentos.db-shm
+state/improve_report.md
+
+# Per-run project packs and auto-generated guardrails (created at runtime).
+projects/*
+!projects/.gitkeep
+aos/evals/generated/*
+!aos/evals/generated/.gitkeep
+
+__pycache__/
+*.pyc
