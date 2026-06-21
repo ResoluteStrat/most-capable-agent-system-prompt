@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from . import evals
+from . import config, evals
 from .db import ROOT, emit, now
 
 GEN_DIR = Path(__file__).resolve().parent / "evals" / "generated"
@@ -72,3 +72,47 @@ def cycle(conn) -> dict:
     return {"action": "materialize_regression_eval", "kind": kind,
             "applied": applied, "kept": kept,
             "baseline": f"{base_pass}/{total}", "after": f"{new_pass}/{total}"}
+
+
+# A small library of bounded tuning hypotheses on the config surface. Each is a
+# single-key change the loop is allowed to try. Code stays off-limits (ROADMAP M3).
+TUNE_HYPOTHESES = [
+    ("medium_trust_gate", 0.0),   # "be more autonomous on medium-risk work"
+    ("medium_trust_gate", 0.9),   # "be more conservative"
+]
+
+
+def tune_config(conn) -> dict:
+    """One bounded self-improvement cycle on config. Try ONE single-key change,
+    re-measure the eval suite, keep iff strictly better, else revert. Equal score
+    → revert (simpler/default wins). Fully logged. Honest: with a green suite the
+    expected outcome is a logged rejection, which is exactly the safety property."""
+    base_pass = _eval_pass_count()
+    key, candidate = TUNE_HYPOTHESES[0]
+    old = config.get(key)
+    if old == candidate:                       # nothing to try; pick the other
+        key, candidate = TUNE_HYPOTHESES[1]
+        old = config.get(key)
+
+    config.set(key, candidate); config.invalidate()
+    after_pass = _eval_pass_count()
+    kept = after_pass > base_pass              # STRICTLY better, else revert
+    if not kept:
+        config.set(key, old); config.invalidate()
+
+    emit(conn, "improve.tune", key=key, candidate=candidate, old=old, kept=kept,
+         baseline=base_pass, after=after_pass)
+    report = ROOT / "state" / "improve_report.md"
+    report.parent.mkdir(parents=True, exist_ok=True)
+    with report.open("a") as fh:
+        fh.write(f"\n## {now()} — tune {key}\n"
+                 f"- tried {key}={candidate} (was {old})\n"
+                 f"- eval {base_pass} → {after_pass}; kept={kept} "
+                 f"({'improvement' if kept else 'reverted — no regression allowed'})\n")
+    return {"action": "tune_config", "key": key, "candidate": candidate,
+            "old": old, "kept": kept, "baseline": base_pass, "after": after_pass,
+            "note": "reverted: change was not strictly better" if not kept else "kept improvement"}
+
+
+def _eval_pass_count() -> int:
+    return sum(1 for _, passed, _ in evals.run_suite() if passed)

@@ -126,6 +126,23 @@ def test_improve_cycle_is_safe_noop_when_stable():
     assert out["action"] in ("noop", "materialize_regression_eval")
 
 
+def test_eval_suite_is_repeat_run_stable():
+    stable, counts = evals.stability(3)
+    assert stable, f"non-deterministic eval suite across runs: {counts}"
+
+
+def test_tune_loop_reverts_a_regression():
+    from aos import config
+    conn = _fresh()
+    config.reset(None)                       # start from defaults
+    out = improve.tune_config(conn)
+    # candidate gate=0.0 breaks the trust-gate eval → strictly worse → revert
+    assert out["kept"] is False
+    assert out["after"] < out["baseline"]
+    assert config.get("medium_trust_gate") == 0.5    # restored
+    config.reset(None)
+
+
 if __name__ == "__main__":
     # Stdlib fallback runner so the suite works without pytest installed.
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]

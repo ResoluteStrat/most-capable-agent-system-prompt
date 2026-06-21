@@ -10,7 +10,9 @@ Commands:
   queues [--sync]                             show / sync momentum queues
   metrics                                     proof-of-progress metrics
   eval                                        run the eval harness
-  improve                                     one bounded self-improvement cycle
+  improve [--tune]                            one bounded self-improvement cycle
+                                              (--tune = config keep/revert behind evals)
+  config [--set k=v | --reset k|all]          show / tune the safe config surface
   approvals [--approve ID|--deny ID]          approval queue
   recurring                                   proactive sweep → propose goals
   profiles                                     list behavior profiles + model routing
@@ -106,8 +108,30 @@ def cmd_eval(args):
 
 
 def cmd_improve(args):
-    out = improve.cycle(_conn())
+    conn = _conn()
+    out = improve.tune_config(conn) if args.tune else improve.cycle(conn)
     print(json.dumps(out, indent=2))
+
+
+def cmd_config(args):
+    from . import config
+    if args.set:
+        key, _, raw = args.set.partition("=")
+        try:
+            val = json.loads(raw)
+        except json.JSONDecodeError:
+            val = raw
+        config.set(key.strip(), val)
+        print(f"set {key.strip()} = {val!r}")
+        return
+    if args.reset:
+        config.reset(None if args.reset == "all" else args.reset)
+        print(f"reset {args.reset}")
+        return
+    cfg = config.load()
+    for k, v in cfg.items():
+        flag = "" if config.DEFAULTS.get(k) == v else "  (overridden)"
+        print(f"  {k:26} {v}{flag}")
 
 
 def cmd_approvals(args):
@@ -215,7 +239,10 @@ def build_parser():
     sub.add_parser("dash").set_defaults(fn=cmd_dash)
     sub.add_parser("metrics").set_defaults(fn=cmd_metrics)
     sub.add_parser("eval").set_defaults(fn=cmd_eval)
-    sub.add_parser("improve").set_defaults(fn=cmd_improve)
+    im = sub.add_parser("improve"); im.add_argument("--tune", action="store_true")
+    im.set_defaults(fn=cmd_improve)
+    cf = sub.add_parser("config"); cf.add_argument("--set"); cf.add_argument("--reset")
+    cf.set_defaults(fn=cmd_config)
     a = sub.add_parser("approvals"); a.add_argument("--approve"); a.add_argument("--deny")
     a.set_defaults(fn=cmd_approvals)
     sub.add_parser("recurring").set_defaults(fn=cmd_recurring)

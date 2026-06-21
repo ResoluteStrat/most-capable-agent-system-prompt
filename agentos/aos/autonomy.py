@@ -14,16 +14,17 @@ decision — so it is testable and auditable.
 """
 from __future__ import annotations
 
-MEDIUM_TRUST_GATE = 0.5
+from . import config
 
 
 def decide(risk: str, trust: float, kind: str) -> tuple[bool, str]:
-    if risk == "high":
+    gate = config.get("medium_trust_gate", 0.5)
+    if risk == "high" and config.get("high_risk_always_approve", True):
         return True, f"high-risk {kind}: requires human approval before side effects"
     if risk == "medium":
-        if trust >= MEDIUM_TRUST_GATE:
-            return False, f"medium-risk, trust {trust:.2f} ≥ {MEDIUM_TRUST_GATE} → autonomous"
-        return True, f"medium-risk, trust {trust:.2f} < {MEDIUM_TRUST_GATE} → not yet earned"
+        if trust >= gate:
+            return False, f"medium-risk, trust {trust:.2f} ≥ {gate} → autonomous"
+        return True, f"medium-risk, trust {trust:.2f} < {gate} → not yet earned"
     return False, "low-risk → autonomous"
 
 

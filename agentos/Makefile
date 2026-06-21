@@ -14,5 +14,5 @@ dash:        ## show the dashboard
 	python3 -m aos dash
 
 clean:       ## remove runtime artifacts (DB, project packs, generated evals)
-	rm -f state/agentos.db* state/improve_report.md
+	rm -f state/agentos.db* state/improve_report.md state/config.json
 	rm -rf projects/* aos/evals/generated/*

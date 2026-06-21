@@ -48,8 +48,9 @@ cat projects/*onboarding*/status.md  # the file-first project pack
 | `aos/adapters/model.py` | Model-routing seam behind a stable `route()` — cheap by default, escalates to strong for high-risk. Vendor-neutral; cost flows into `runs`. |
 | `aos/autonomy.py` | Trust- and risk-gated autonomy: low-risk auto, medium needs earned trust, high pauses for approval. |
 | `aos/policy.py` | Deny-first shell guardrails. |
-| `aos/improve.py` | Bounded, safe, logged self-improvement: recurring failures → regression evals; keep iff no regression; equal score → simpler. |
-| `aos/evals/` | 6 cases across capability / behavioral / regression / safety / structure. |
+| `aos/config.py` | Transparent, versioned, tunable surface (`state/config.json` over defaults) the self-improvement loop is allowed to touch. |
+| `aos/improve.py` | Bounded, safe, logged self-improvement: recurring failures → regression evals; **`tune_config`** runs a one-change keep/revert loop behind the eval gate (strictly-better-or-revert). |
+| `aos/evals/` | 12 cases (capability / behavioral / regression / safety / structure / **adversarial** / **long-horizon**), each timed; `stability()` checks repeat-run determinism. |
 | `aos/db.py`, `aos/schema.sql` | SQLite (WAL) control plane: goals, tasks, events, runs, memory, evals, approvals. |
 | `aos/cli.py` | The human control plane (`goal/run/status/dash/metrics/eval/improve/approvals/recurring/queues/selftest`). |
 

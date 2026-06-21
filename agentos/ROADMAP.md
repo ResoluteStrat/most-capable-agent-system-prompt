@@ -19,12 +19,19 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
 - Approval queue CLI (`aos approvals --approve/--deny`) + `aos profiles` + dash
   shows per-skill autonomy tier. 4 new eval cases (10/10), 11/11 tests.
 
-## M3 — Eval program depth + self-improvement engine
-- Eval categories: capability, regression, behavioral/safety, adversarial,
-  long-horizon. pass@1 + repeat-run stability + cost/time-to-pass.
-- Background self-improvement loop: one bounded change → eval slice → keep/revert,
-  fully logged. Equal-score → simpler wins.
-- failure→eval converter wired into the failure loop.
+## M3 — Eval program depth + self-improvement engine  ◑ (core shipped)
+- ✅ Eval categories now span capability, regression, behavioral/safety,
+  **adversarial** (instructions-in-data stay inert), and **long-horizon**
+  (8-step dependent chain). 12 cases. Each case is **timed** (time-to-pass) and
+  **repeat-run stable** (`evals.stability()` → identical pass set across k runs).
+- ✅ Config self-improvement: a safe, versioned `config` surface +
+  `improve.tune_config` runs a one-change keep/revert loop **behind the eval
+  gate** — strictly-better-or-revert; equal/worse → revert (default/simpler wins).
+  Verified it correctly *rejects* a "be more autonomous" change that would break
+  the trust gate. `aos config` / `aos improve --tune`.
+- ✅ failure→eval converter wired into the failure loop (`improve.cycle`).
+- ⏳ Still deferred: code-editing self-improvement (needs deeper eval coverage to
+  protect it) and pass@k under stochastic executors (harness is deterministic).
 
 ## M4 — Specialized harness library (state machines)
 First specialized harness: **coding & delivery** (plan → change → test → review →
