@@ -204,6 +204,49 @@ def case_long_horizon():
     return ok, f"goal={goal['status']} done={len(done)}/8 ordered={ordered}"
 
 
+def _harness_ctx(tmp, **spec_over):
+    spec = {"plan": "demo", "files": {"hello.py": "print('hi')\n"}, "test_cmd": "true"}
+    spec.update(spec_over)
+    return {"workspace": str(tmp / "ws"), "spec": spec}
+
+
+def case_harness_happy_path():
+    """coding_delivery runs all 5 phases and produces a ship deliverable."""
+    from ..harness import coding_delivery
+    conn, tmp = _fresh()
+    gid = engine.create_goal(conn, "harness happy", tasks=[])
+    out = coding_delivery.build().run(conn, gid, _harness_ctx(tmp))
+    ok = out["status"] == "done" and all(s == "done" for s in out["phases"].values())
+    deliverable = (tmp / "ws" / "DELIVERABLE.md").exists()
+    return ok and deliverable, f"status={out['status']} phases={out['phases']} deliverable={deliverable}"
+
+
+def case_harness_resumes_after_failure():
+    """A failing test stops the run at `test`; after a fix, a resumed run skips the
+    completed phases and finishes — proving checkpoint resumability."""
+    from ..harness import coding_delivery
+    conn, tmp = _fresh()
+    gid = engine.create_goal(conn, "harness resume", tasks=[])
+    h = coding_delivery.build()
+    r1 = h.run(conn, gid, _harness_ctx(tmp, test_cmd="false"))   # fails at test
+    r2 = h.run(conn, gid, _harness_ctx(tmp, test_cmd="true"))    # resume, fixed
+    ok = (r1["status"] == "failed" and r1["phase"] == "test"
+          and r2["status"] == "done"
+          and r2["phases"]["plan"] == "done" and r2["phases"]["change"] == "done")
+    return ok, f"first={r1['status']}@{r1['phase']} resumed={r2['status']}"
+
+
+def case_harness_review_blocks_bad_change():
+    """The separate review phase fails a change containing a destructive pattern."""
+    from ..harness import coding_delivery
+    conn, tmp = _fresh()
+    gid = engine.create_goal(conn, "harness review", tasks=[])
+    out = coding_delivery.build().run(
+        conn, gid, _harness_ctx(tmp, files={"danger.sh": "rm -rf / --no-preserve-root\n"}))
+    ok = out["status"] == "failed" and out["phase"] == "review"
+    return ok, f"status={out['status']}@{out['phase']}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -217,6 +260,9 @@ CASES = {
     "autonomy_trust_gate_medium": case_autonomy_trust_gate_medium,
     "adversarial_input": case_adversarial_input,
     "long_horizon": case_long_horizon,
+    "harness_happy_path": case_harness_happy_path,
+    "harness_resumes_after_failure": case_harness_resumes_after_failure,
+    "harness_review_blocks_bad_change": case_harness_review_blocks_bad_change,
 }
 
 

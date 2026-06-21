@@ -86,6 +86,20 @@ CREATE TABLE IF NOT EXISTS evals (
     cost_ticks INTEGER NOT NULL DEFAULT 0
 );
 
+-- Specialized harness runs (state machines). Phase-by-phase status is the
+-- canonical resumable state; the checkpoint file in the project pack mirrors it.
+CREATE TABLE IF NOT EXISTS harness_runs (
+    id          TEXT PRIMARY KEY,
+    harness     TEXT NOT NULL,
+    goal_id     TEXT,
+    status      TEXT NOT NULL DEFAULT 'running',   -- running/done/failed
+    phase       TEXT NOT NULL DEFAULT '',          -- current/last phase
+    phases      TEXT NOT NULL DEFAULT '{}',        -- JSON {phase: status}
+    checkpoint  TEXT NOT NULL DEFAULT '',          -- path to checkpoint file
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS approvals (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
     ts        TEXT NOT NULL,

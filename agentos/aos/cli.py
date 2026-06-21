@@ -16,6 +16,8 @@ Commands:
   approvals [--approve ID|--deny ID]          approval queue
   recurring                                   proactive sweep → propose goals
   profiles                                     list behavior profiles + model routing
+  harness coding [--spec f.json] [--goal ID]   run the coding & delivery state machine
+                 [--no-resume]                 (plan→change→test→review→gate; resumable)
   selftest                                    prove the full closed loop end-to-end
 """
 from __future__ import annotations
@@ -185,6 +187,30 @@ def cmd_profiles(args):
               f"kinds={p.get('handles_kinds')} tags={p.get('handles_tags')}")
 
 
+def cmd_harness(args):
+    from pathlib import Path
+
+    from . import engine
+    from .harness import coding_delivery
+    conn = _conn()
+    spec = json.loads(Path(args.spec).read_text()) if args.spec else {
+        "plan": "demo change", "files": {"hello.py": "print('hi')\n"}, "test_cmd": "true"}
+    goal_id = args.goal
+    if not goal_id:
+        goal_id = engine.create_goal(conn, f"Harness: {args.name}", tasks=[])
+    goal = conn.execute("SELECT project_dir FROM goals WHERE id=?", (goal_id,)).fetchone()
+    workspace = args.workspace or str(Path(goal["project_dir"]) / "artifacts" / "workspace")
+    harnesses = {"coding": coding_delivery.build}
+    h = harnesses[args.name]()
+    out = h.run(conn, goal_id, {"workspace": workspace, "spec": spec}, resume=not args.no_resume)
+    print(f"harness {out['harness']} → {out['status'].upper()} (last phase: {out['phase']})")
+    for ph, st in out["phases"].items():
+        print(f"  {st:8} {ph}")
+    if out["status"] != "done":
+        print(f"\nresumable: fix the issue and re-run "
+              f"`aos harness {args.name} --goal {goal_id}` to continue from here.")
+
+
 def cmd_queues(args):
     from .db import ROOT
     qf = ROOT / "queues.md"
@@ -247,6 +273,9 @@ def build_parser():
     a.set_defaults(fn=cmd_approvals)
     sub.add_parser("recurring").set_defaults(fn=cmd_recurring)
     sub.add_parser("profiles").set_defaults(fn=cmd_profiles)
+    hp = sub.add_parser("harness"); hp.add_argument("name", choices=["coding"])
+    hp.add_argument("--spec"); hp.add_argument("--goal"); hp.add_argument("--workspace")
+    hp.add_argument("--no-resume", action="store_true"); hp.set_defaults(fn=cmd_harness)
     q = sub.add_parser("queues"); q.add_argument("--sync", action="store_true"); q.set_defaults(fn=cmd_queues)
     sub.add_parser("selftest").set_defaults(fn=cmd_selftest)
     return p

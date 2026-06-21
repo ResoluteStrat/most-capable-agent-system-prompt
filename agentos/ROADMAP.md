@@ -33,11 +33,18 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
 - ⏳ Still deferred: code-editing self-improvement (needs deeper eval coverage to
   protect it) and pass@k under stochastic executors (harness is deterministic).
 
-## M4 — Specialized harness library (state machines)
-First specialized harness: **coding & delivery** (plan → change → test → review →
-gate) as an explicit phased state machine with checkpoints + resumability. Then a
-**document/report** harness with schema-validated phase boundaries and templated
-programmatic output.
+## M4 — Specialized harness library (state machines)  ◑ (first harness shipped)
+- ✅ Generic resumable state machine (`aos/harness/base.py`): ordered phases,
+  entry guards, per-phase separate verify, status persisted to `harness_runs` +
+  a checkpoint file. Resume skips `done` phases and restarts at the first
+  non-done one (workspace is canonical — fix in place, then continue).
+- ✅ First harness: **coding & delivery** (plan → change → test → review → gate),
+  builder ≠ reviewer (review runs deny-first + forbidden-token scan on the
+  change). `aos harness coding`. 3 eval cases + 2 tests (happy / resume / review-
+  blocks-bad-change). Verified end-to-end: failing test stops at `test`, fix the
+  workspace, resume runs test→review→gate to a passed ship gate.
+- ⏳ Next: a **document/report** harness reusing the same base with schema-
+  validated phase boundaries and templated programmatic output.
 
 ## M5 — Computer-use adapters
 Browser adapter (named actions, observe-before-act, evidence capture, session

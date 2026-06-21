@@ -126,6 +126,35 @@ def test_improve_cycle_is_safe_noop_when_stable():
     assert out["action"] in ("noop", "materialize_regression_eval")
 
 
+def test_coding_harness_runs_all_phases():
+    from aos.harness import coding_delivery
+    conn = _fresh()
+    import tempfile
+    ws = Path(tempfile.mkdtemp()) / "ws"
+    gid = engine.create_goal(conn, "h", tasks=[])
+    out = coding_delivery.build().run(conn, gid, {
+        "workspace": str(ws),
+        "spec": {"plan": "p", "files": {"a.py": "x=1\n"}, "test_cmd": "true"}})
+    assert out["status"] == "done"
+    assert (ws / "DELIVERABLE.md").exists()
+
+
+def test_coding_harness_resumes_from_failed_phase():
+    from aos.harness import coding_delivery
+    import tempfile
+    conn = _fresh()
+    ws = Path(tempfile.mkdtemp()) / "ws"
+    gid = engine.create_goal(conn, "h", tasks=[])
+    h = coding_delivery.build()
+    spec = {"plan": "p", "files": {"a.py": "x=1\n"}, "test_cmd": "false"}
+    r1 = h.run(conn, gid, {"workspace": str(ws), "spec": spec})
+    assert r1["status"] == "failed" and r1["phase"] == "test"
+    spec["test_cmd"] = "true"        # the fix
+    r2 = h.run(conn, gid, {"workspace": str(ws), "spec": spec})
+    assert r2["status"] == "done"
+    assert r2["phases"]["plan"] == "done" and r2["phases"]["change"] == "done"
+
+
 def test_eval_suite_is_repeat_run_stable():
     stable, counts = evals.stability(3)
     assert stable, f"non-deterministic eval suite across runs: {counts}"

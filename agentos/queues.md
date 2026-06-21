@@ -5,16 +5,15 @@ These are the live human-facing momentum queues. The DB mirrors task state; this
 file is the at-a-glance operator view. Updated by `aos queues --sync`.
 
 ## now
-- M1 + M2 + M3-core done and verified (`aos selftest`; `aos eval` 12/12 timed +
-  repeat-run stable; 13/13 tests). Eval depth (adversarial + long-horizon) and a
-  safe config keep/revert self-improvement loop are live.
+- M1 + M2 + M3-core + M4-first-harness done and verified (`aos selftest`;
+  `aos eval` 15/15 timed + repeat-run stable; 15/15 tests). Coding & delivery
+  harness (plan→change→test→review→gate) is resumable from any phase.
 
 ## next
-1. M4 — First specialized harness: **coding & delivery** as an explicit phased
-   state machine (plan → change → test → review → gate) with per-phase
-   checkpoints + resumability after interruption.
-2. M4 — Generalize the harness base (phases, entry/exit criteria, schema-validated
-   boundaries, resume) so document/report harness reuses it.
+1. M4 cont. — a **document/report** harness on the same base, with schema-
+   validated phase boundaries + programmatic templated output (not free-form).
+2. M5 — browser adapter slot (named actions, observe-before-act, evidence
+   capture) + a skeptical QA evaluator separate from the builder.
 3. M3 follow-up — wire `improve.tune_config` into the recurring sweep so tuning is
    attempted automatically when eval headroom appears.
 
