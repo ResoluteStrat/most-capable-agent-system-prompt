@@ -247,6 +247,32 @@ def case_harness_review_blocks_bad_change():
     return ok, f"status={out['status']}@{out['phase']}"
 
 
+def case_report_harness_happy_path():
+    from ..harness import document_report
+    conn, tmp = _fresh()
+    gid = engine.create_goal(conn, "report happy", tasks=[])
+    out = document_report.build().run(conn, gid, {
+        "workspace": str(tmp / "ws"),
+        "spec": {"data": {"title": "Q2 Report", "period": "2026-Q2",
+                          "metrics": {"arr": 120, "nrr": 1.1}, "findings": ["good"]}}})
+    rendered = (tmp / "ws" / "REPORT.md")
+    ok = out["status"] == "done" and rendered.exists() and "Q2 Report" in rendered.read_text()
+    return ok, f"status={out['status']} report={'Q2 Report' in rendered.read_text() if rendered.exists() else False}"
+
+
+def case_report_harness_schema_gate():
+    """Incomplete input is refused at the validate boundary — no report rendered."""
+    from ..harness import document_report
+    conn, tmp = _fresh()
+    gid = engine.create_goal(conn, "report gate", tasks=[])
+    out = document_report.build().run(conn, gid, {
+        "workspace": str(tmp / "ws"),
+        "spec": {"data": {"title": "Missing metrics"}, "required": ["title", "period", "metrics"]}})
+    refused = out["status"] == "failed" and out["phase"] == "validate"
+    no_report = not (tmp / "ws" / "REPORT.md").exists()
+    return refused and no_report, f"status={out['status']}@{out['phase']} no_report={no_report}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -263,6 +289,8 @@ CASES = {
     "harness_happy_path": case_harness_happy_path,
     "harness_resumes_after_failure": case_harness_resumes_after_failure,
     "harness_review_blocks_bad_change": case_harness_review_blocks_bad_change,
+    "report_harness_happy_path": case_report_harness_happy_path,
+    "report_harness_schema_gate": case_report_harness_schema_gate,
 }
 
 

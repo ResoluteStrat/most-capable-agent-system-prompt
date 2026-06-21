@@ -43,8 +43,13 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   change). `aos harness coding`. 3 eval cases + 2 tests (happy / resume / review-
   blocks-bad-change). Verified end-to-end: failing test stops at `test`, fix the
   workspace, resume runs test→review→gate to a passed ship gate.
-- ⏳ Next: a **document/report** harness reusing the same base with schema-
-  validated phase boundaries and templated programmatic output.
+- ✅ Second harness: **document/report** (intake → validate → render → review),
+  reusing `base` unchanged — proves the state machine generalizes. Demonstrates a
+  schema-validated phase boundary (refuses to render incomplete input) and
+  programmatic templated output (the model never freestyles the format).
+  `aos harness report`. 2 eval cases (happy / schema-gate-refusal).
+- ⏳ Next: extract the workspace-fix/reapply policy into a documented harness
+  contract; add a finance/reporting harness variant on the same base.
 
 ## M5 — Computer-use adapters
 Browser adapter (named actions, observe-before-act, evidence capture, session

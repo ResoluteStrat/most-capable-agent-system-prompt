@@ -191,16 +191,21 @@ def cmd_harness(args):
     from pathlib import Path
 
     from . import engine
-    from .harness import coding_delivery
+    from .harness import coding_delivery, document_report
     conn = _conn()
-    spec = json.loads(Path(args.spec).read_text()) if args.spec else {
-        "plan": "demo change", "files": {"hello.py": "print('hi')\n"}, "test_cmd": "true"}
+    defaults = {
+        "coding": {"plan": "demo change", "files": {"hello.py": "print('hi')\n"}, "test_cmd": "true"},
+        "report": {"data": {"title": "Weekly Report", "period": "2026-W25",
+                            "metrics": {"tasks_done": 15, "eval_pass_rate": 1.0},
+                            "findings": ["loop stable", "no regressions"]}},
+    }
+    spec = json.loads(Path(args.spec).read_text()) if args.spec else defaults[args.name]
     goal_id = args.goal
     if not goal_id:
         goal_id = engine.create_goal(conn, f"Harness: {args.name}", tasks=[])
     goal = conn.execute("SELECT project_dir FROM goals WHERE id=?", (goal_id,)).fetchone()
     workspace = args.workspace or str(Path(goal["project_dir"]) / "artifacts" / "workspace")
-    harnesses = {"coding": coding_delivery.build}
+    harnesses = {"coding": coding_delivery.build, "report": document_report.build}
     h = harnesses[args.name]()
     out = h.run(conn, goal_id, {"workspace": workspace, "spec": spec}, resume=not args.no_resume)
     print(f"harness {out['harness']} → {out['status'].upper()} (last phase: {out['phase']})")
@@ -273,7 +278,7 @@ def build_parser():
     a.set_defaults(fn=cmd_approvals)
     sub.add_parser("recurring").set_defaults(fn=cmd_recurring)
     sub.add_parser("profiles").set_defaults(fn=cmd_profiles)
-    hp = sub.add_parser("harness"); hp.add_argument("name", choices=["coding"])
+    hp = sub.add_parser("harness"); hp.add_argument("name", choices=["coding", "report"])
     hp.add_argument("--spec"); hp.add_argument("--goal"); hp.add_argument("--workspace")
     hp.add_argument("--no-resume", action="store_true"); hp.set_defaults(fn=cmd_harness)
     q = sub.add_parser("queues"); q.add_argument("--sync", action="store_true"); q.set_defaults(fn=cmd_queues)
