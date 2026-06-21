@@ -1,0 +1,10 @@
+{
+  "name": "reviewer",
+  "role": "Adversarially review high-risk or high-value changes before they ship.",
+  "handles_kinds": [],
+  "handles_tags": ["review", "security", "adversarial"],
+  "allowed_executors": ["noop", "checkpoint"],
+  "model_tier": "strong",
+  "verification_standard": "strict",
+  "escalation": "block-on-doubt"
+}

@@ -13,6 +13,7 @@ Commands:
   improve                                     one bounded self-improvement cycle
   approvals [--approve ID|--deny ID]          approval queue
   recurring                                   proactive sweep → propose goals
+  profiles                                     list behavior profiles + model routing
   selftest                                    prove the full closed loop end-to-end
 """
 from __future__ import annotations
@@ -77,9 +78,11 @@ def cmd_dash(args):
     print("\nGOALS")
     for g in conn.execute("SELECT * FROM goals ORDER BY created_at DESC LIMIT 8"):
         print(f"  [{g['status']:6}] {g['id']}  {g['title']}")
-    print("\nTRUST (per-skill)")
+    print("\nTRUST (per-skill → autonomy tier)")
+    from . import autonomy
     for r in conn.execute("SELECT mkey,value FROM memory WHERE mtype='preference' AND mkey LIKE 'trust:%'"):
-        print(f"  {r['mkey'][6:]:12} {r['value']}")
+        val = float(r["value"])
+        print(f"  {r['mkey'][6:]:12} {val:.3f}  [{autonomy.tier(val)}]")
     print("\nRECENT EVENTS")
     for e in conn.execute("SELECT * FROM events ORDER BY id DESC LIMIT 12"):
         print(f"  {e['ts']}  {e['kind']:22} {e['task_id'] or e['goal_id'] or ''}")
@@ -149,6 +152,15 @@ def cmd_recurring(args):
         emit(conn, "proactive.proposal", detail=p)
 
 
+def cmd_profiles(args):
+    from . import profiles
+    from .adapters import model
+    for p in profiles.load_all().values():
+        r = model.route(p)
+        print(f"  {p['name']:9} tier={p.get('model_tier'):6} ({r['model']}, cost={r['cost']})  "
+              f"kinds={p.get('handles_kinds')} tags={p.get('handles_tags')}")
+
+
 def cmd_queues(args):
     from .db import ROOT
     qf = ROOT / "queues.md"
@@ -207,6 +219,7 @@ def build_parser():
     a = sub.add_parser("approvals"); a.add_argument("--approve"); a.add_argument("--deny")
     a.set_defaults(fn=cmd_approvals)
     sub.add_parser("recurring").set_defaults(fn=cmd_recurring)
+    sub.add_parser("profiles").set_defaults(fn=cmd_profiles)
     q = sub.add_parser("queues"); q.add_argument("--sync", action="store_true"); q.set_defaults(fn=cmd_queues)
     sub.add_parser("selftest").set_defaults(fn=cmd_selftest)
     return p

@@ -1,0 +1,10 @@
+{
+  "name": "verifier",
+  "role": "Independently certify that a result meets its definition of done.",
+  "handles_kinds": ["checkpoint"],
+  "handles_tags": ["qa", "verify", "test"],
+  "allowed_executors": ["noop", "checkpoint"],
+  "model_tier": "cheap",
+  "verification_standard": "strict",
+  "escalation": "fail-closed"
+}

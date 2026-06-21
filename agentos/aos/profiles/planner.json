@@ -1,0 +1,10 @@
+{
+  "name": "planner",
+  "role": "Decompose goals into verifiable task graphs.",
+  "handles_kinds": [],
+  "handles_tags": ["planning", "decompose"],
+  "allowed_executors": ["noop", "checkpoint"],
+  "model_tier": "strong",
+  "verification_standard": "structural",
+  "escalation": "ask-human-on-ambiguity"
+}

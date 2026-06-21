@@ -1,0 +1,10 @@
+{
+  "name": "executor",
+  "role": "Carry out typed actions that produce artifacts.",
+  "handles_kinds": ["write_file", "shell", "python", "gather", "noop"],
+  "handles_tags": ["writing", "research", "coding", "ops"],
+  "allowed_executors": ["write_file", "shell", "python", "gather", "noop"],
+  "model_tier": "cheap",
+  "verification_standard": "artifact",
+  "escalation": "retry-then-escalate"
+}

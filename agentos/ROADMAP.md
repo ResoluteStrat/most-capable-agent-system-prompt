@@ -6,14 +6,18 @@ memory (episodic/semantic/procedural) → visibility (status/dash/files) →
 learning. Proven by `aos selftest` + `aos eval`. File-first project packs +
 SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
 
-## M2 — Profiles, routing, trust, approvals
-- Loadable **profiles** (planner / executor / verifier / reviewer) as data, not
-  prompts baked in code. Skill-tag → profile routing table.
-- **Model-routing adapter** slot (cheap-vs-strong) behind a stable interface; no
-  vendor lock-in. Budget accounting by model/task/goal.
-- **Per-skill trust scores** promoted from real outcomes; autonomy tiers
-  (supervised → guided → autonomous) gated by trust.
-- Approval queue CLI (`aos approvals`) + richer deny-first policy + tests.
+## M2 — Profiles, routing, trust, approvals  ✅ (shipped)
+- Loadable **profiles** (planner / executor / verifier / reviewer) as JSON data,
+  not prompts baked in code. `route_profile()` matches kind first, then skill tags.
+- **Model-routing adapter** (`aos/adapters/model.py`) behind a stable `route()`
+  interface — deterministic stub today, real gateway later, engine unchanged.
+  Cheap by default; escalates to the strong tier for high-risk work. Cost flows
+  into `runs.cost_ticks`.
+- **Trust- and risk-gated autonomy** (`aos/autonomy.py`): low-risk auto; medium-
+  risk needs earned trust (≥0.5); high-risk always pauses for approval. Trust
+  moves on real outcomes; `tier()` maps it supervised→guided→autonomous→trusted.
+- Approval queue CLI (`aos approvals --approve/--deny`) + `aos profiles` + dash
+  shows per-skill autonomy tier. 4 new eval cases (10/10), 11/11 tests.
 
 ## M3 — Eval program depth + self-improvement engine
 - Eval categories: capability, regression, behavioral/safety, adversarial,

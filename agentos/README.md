@@ -44,7 +44,10 @@ cat projects/*onboarding*/status.md  # the file-first project pack
 | `aos/verify.py` | **Independent** verifier. Plans: `always`, `exec_ok`, `file_exists`, `file_contains`, `json_schema`, `command`. |
 | `aos/memory.py` | Layered memory (episodic / semantic / **procedural** / preference). Procedural recipes are the compounding asset; trust scores per skill. |
 | `aos/projectpack.py` | File-first project packs: `project/plan/tasks/status/knowledge/decisions/handoff.md` + `artifacts/`. Any agent can continue from the folder. |
-| `aos/policy.py` | Deny-first shell guardrails + approval gating for high-risk tasks. |
+| `aos/profiles/` + `aos/profiles.py` | Loadable behavior profiles (planner/executor/verifier/reviewer) as JSON; `route_profile()` picks one per task by kind then tags. |
+| `aos/adapters/model.py` | Model-routing seam behind a stable `route()` — cheap by default, escalates to strong for high-risk. Vendor-neutral; cost flows into `runs`. |
+| `aos/autonomy.py` | Trust- and risk-gated autonomy: low-risk auto, medium needs earned trust, high pauses for approval. |
+| `aos/policy.py` | Deny-first shell guardrails. |
 | `aos/improve.py` | Bounded, safe, logged self-improvement: recurring failures → regression evals; keep iff no regression; equal score → simpler. |
 | `aos/evals/` | 6 cases across capability / behavioral / regression / safety / structure. |
 | `aos/db.py`, `aos/schema.sql` | SQLite (WAL) control plane: goals, tasks, events, runs, memory, evals, approvals. |

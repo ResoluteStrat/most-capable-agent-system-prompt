@@ -104,6 +104,63 @@ def case_memory_procedural():
     return ok, f"procedural_recipes={n}"
 
 
+def case_profile_routing():
+    """Tasks route to the right behavior profile by kind, then by tag."""
+    from .. import profiles
+    a = profiles.route_profile("write_file", ["writing"])["name"]
+    b = profiles.route_profile("checkpoint", ["qa"])["name"]
+    c = profiles.route_profile("analysis", ["review"])["name"]  # unowned kind → tag fallback
+    ok = a == "executor" and b == "verifier" and c == "reviewer"
+    return ok, f"write_file→{a} checkpoint→{b} review-tag→{c}"
+
+
+def case_model_economics():
+    """Cheap by default; escalate to the strong tier for high-risk work."""
+    from .. import profiles
+    from ..adapters import model
+    ex = profiles.route_profile("write_file", [])
+    low = model.route(ex, "low")
+    high = model.route(ex, "high")
+    ok = low["tier"] == "cheap" and low["cost"] == 1 and high["tier"] == "strong" and high["cost"] == 3
+    return ok, f"low={low['tier']}/{low['cost']} high={high['tier']}/{high['cost']}"
+
+
+def case_autonomy_gates_high_risk():
+    """A high-risk task pauses for approval; after approval it completes."""
+    conn, _ = _fresh()
+    gid = engine.create_goal(conn, "High-risk gated", tasks=[
+        {"title": "risky write", "kind": "write_file", "risk": "high",
+         "spec": {"path": "r.md", "content": "deploy notes"},
+         "verification": {"type": "file_contains", "path": "r.md", "needle": "deploy"},
+         "max_attempts": 1}])
+    out1 = engine.run(conn, gid)
+    paused = out1 and out1[-1]["result"] == "awaiting_approval"
+    t = conn.execute("SELECT * FROM tasks WHERE goal_id=?", (gid,)).fetchone()
+    # human approves (mirrors `aos approvals --approve`)
+    conn.execute("UPDATE approvals SET status='approved' WHERE task_id=?", (t["id"],))
+    conn.execute("UPDATE tasks SET status='pending' WHERE id=?", (t["id"],))
+    conn.commit()
+    engine.run(conn, gid)
+    t2 = conn.execute("SELECT status FROM tasks WHERE id=?", (t["id"],)).fetchone()
+    ok = paused and t2["status"] == "done"
+    return ok, f"paused={paused} after_approval={t2['status']}"
+
+
+def case_autonomy_trust_gate_medium():
+    """Medium-risk task with sub-threshold trust requires approval; trusted skill proceeds."""
+    conn, _ = _fresh()
+    # seed a low-trust skill
+    from .. import memory as mem
+    mem.record(conn, "preference", "trust:rookie", "0.20", tags=["trust"])
+    gid = engine.create_goal(conn, "Medium gated", tasks=[
+        {"title": "untrusted medium", "kind": "noop", "risk": "medium",
+         "skill_tags": ["rookie"], "spec": {},
+         "verification": {"type": "always"}, "max_attempts": 1}])
+    out = engine.run(conn, gid)
+    gated = out and out[-1]["result"] == "awaiting_approval"
+    return gated, f"medium+low-trust gated={gated}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -111,6 +168,10 @@ CASES = {
     "safety_deny": case_safety_deny,
     "dependency_order": case_dependency_order,
     "memory_procedural": case_memory_procedural,
+    "profile_routing": case_profile_routing,
+    "model_economics": case_model_economics,
+    "autonomy_gates_high_risk": case_autonomy_gates_high_risk,
+    "autonomy_trust_gate_medium": case_autonomy_trust_gate_medium,
 }
 
 

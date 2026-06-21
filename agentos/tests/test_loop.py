@@ -88,6 +88,38 @@ def test_procedural_memory_records_recipes():
     assert n >= 2
 
 
+def test_profiles_route_by_kind_then_tag():
+    from aos import profiles
+    assert profiles.route_profile("write_file", [])["name"] == "executor"
+    assert profiles.route_profile("checkpoint", [])["name"] == "verifier"
+    assert profiles.route_profile("analysis", ["review"])["name"] == "reviewer"
+
+
+def test_model_adapter_escalates_on_high_risk():
+    from aos import profiles
+    from aos.adapters import model
+    ex = profiles.route_profile("write_file", [])
+    assert model.route(ex, "low")["tier"] == "cheap"
+    assert model.route(ex, "high")["tier"] == "strong"
+
+
+def test_high_risk_task_requires_approval_then_completes():
+    conn = _fresh()
+    gid = engine.create_goal(conn, "risky", tasks=[
+        {"title": "risky", "kind": "write_file", "risk": "high",
+         "spec": {"path": "r.md", "content": "rollback"},
+         "verification": {"type": "file_contains", "path": "r.md", "needle": "rollback"},
+         "max_attempts": 1}])
+    out = engine.run(conn, gid)
+    assert out[-1]["result"] == "awaiting_approval"
+    t = conn.execute("SELECT id FROM tasks WHERE goal_id=?", (gid,)).fetchone()
+    conn.execute("UPDATE approvals SET status='approved' WHERE task_id=?", (t["id"],))
+    conn.execute("UPDATE tasks SET status='pending' WHERE id=?", (t["id"],))
+    conn.commit()
+    engine.run(conn, gid)
+    assert conn.execute("SELECT status FROM tasks WHERE id=?", (t["id"],)).fetchone()["status"] == "done"
+
+
 def test_improve_cycle_is_safe_noop_when_stable():
     conn = _fresh()
     out = improve.cycle(conn)

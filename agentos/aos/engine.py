@@ -11,7 +11,8 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
-from . import executors, memory, policy, projectpack, verify
+from . import autonomy, executors, memory, profiles, projectpack, verify
+from .adapters import model as model_adapter
 from .db import emit, init_db, jdumps, jloads, now
 
 WORKER_ID = "worker-local-1"
@@ -123,29 +124,40 @@ def tick(conn, goal_id=None) -> dict | None:
     if not _claim(conn, tid):
         return {"task_id": tid, "result": "claim-lost"}
 
-    # approval gate (before any side effect)
-    if policy.requires_approval(t["risk"], t["kind"]):
+    # route: pick a behavior profile + a model tier for this task (M2 seam).
+    tags = jloads(t["skill_tags"], [])
+    profile = profiles.route_profile(t["kind"], tags)
+    trust = _task_trust(conn, tags)
+    routing = model_adapter.route(profile, t["risk"])
+    emit(conn, "task.routed", goal_id=t["goal_id"], task_id=tid,
+         profile=profile.get("name"), model=routing["model"], trust=round(trust, 3))
+
+    # trust- and risk-gated autonomy: pause for human approval when not earned.
+    needs_approval, reason = autonomy.decide(t["risk"], trust, t["kind"])
+    if needs_approval:
         existing = conn.execute(
             "SELECT status FROM approvals WHERE task_id=? ORDER BY id DESC LIMIT 1",
             (tid,)).fetchone()
         if not existing or existing["status"] == "pending":
             if not existing:
                 conn.execute("INSERT INTO approvals (ts,task_id,reason,status) VALUES (?,?,?,?)",
-                             (now(), tid, f"high-risk {t['kind']}", "pending"))
+                             (now(), tid, reason, "pending"))
+                conn.commit()
             conn.execute("UPDATE tasks SET status='blocked', updated_at=? WHERE id=?", (now(), tid))
             conn.commit()
-            emit(conn, "task.awaiting_approval", goal_id=t["goal_id"], task_id=tid)
+            emit(conn, "task.awaiting_approval", goal_id=t["goal_id"], task_id=tid, reason=reason)
             projectpack.render(conn, t["goal_id"])
-            return {"task_id": tid, "result": "awaiting_approval"}
+            return {"task_id": tid, "result": "awaiting_approval", "reason": reason}
         if existing["status"] == "denied":
             return _fail(conn, t, "approval denied")
+        # else: approved — fall through and execute.
 
     conn.execute("UPDATE tasks SET status='running', attempts=attempts+1, updated_at=? WHERE id=?",
                  (now(), tid))
     conn.commit()
     emit(conn, "task.running", goal_id=t["goal_id"], task_id=tid)
-    rid = conn.execute("INSERT INTO runs (task_id, started, cost_ticks) VALUES (?,?,1)",
-                       (tid, now())).lastrowid
+    rid = conn.execute("INSERT INTO runs (task_id, started, cost_ticks) VALUES (?,?,?)",
+                       (tid, now(), routing["cost"])).lastrowid
     conn.commit()
 
     project_dir = Path(conn.execute("SELECT project_dir FROM goals WHERE id=?",
@@ -263,6 +275,19 @@ def _learn_failure(conn, t, reason):
     else:
         memory.record(conn, "semantic", key, f"first failure for kind={t['kind']}: {reason}",
                       provenance=f"task:{t['id']}", confidence=0.6)
+
+
+def _task_trust(conn, skill_tags) -> float:
+    """A task is only as trusted as its least-trusted skill. Default 0.5 (neutral)."""
+    tags = skill_tags or []
+    if not tags:
+        return 0.5
+    vals = []
+    for tag in tags:
+        row = conn.execute("SELECT value FROM memory WHERE mtype='preference' AND mkey=?",
+                           (f"trust:{tag}",)).fetchone()
+        vals.append(float(row["value"]) if row else 0.5)
+    return min(vals)
 
 
 def _bump_trust(conn, skill, delta):
