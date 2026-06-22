@@ -155,6 +155,18 @@ def test_coding_harness_resumes_from_failed_phase():
     assert r2["phases"]["plan"] == "done" and r2["phases"]["change"] == "done"
 
 
+def test_recurring_sweep_proposes_and_improves():
+    from aos import sweep
+    conn = _fresh()
+    engine.run(conn, engine.create_goal(conn, "good"))
+    engine.run(conn, engine.create_goal(conn, "bad", tasks=[
+        {"title": "f", "kind": "noop", "spec": {},
+         "verification": {"type": "file_exists", "path": "no.md"}, "max_attempts": 1}]))
+    d = sweep.run(conn)
+    assert any("bad" in p for p in d["proposals"])
+    assert d["improve"] in ("noop", "materialize_regression_eval")
+
+
 def test_rollup_aggregates_altitudes():
     from aos import rollup
     conn = _fresh()

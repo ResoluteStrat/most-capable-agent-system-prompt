@@ -163,21 +163,18 @@ def cmd_approvals(args):
 
 
 def cmd_recurring(args):
-    """Proactive operations loop: scan goals for stalled/failed work → propose goals."""
-    conn = _conn()
-    proposals = []
-    for g in conn.execute("SELECT * FROM goals WHERE status IN ('active','failed')"):
-        failed = conn.execute("SELECT COUNT(*) c FROM tasks WHERE goal_id=? AND status='failed'",
-                              (g["id"],)).fetchone()["c"]
-        if failed:
-            proposals.append(f"investigate {failed} failed task(s) in goal {g['id']} ({g['title']})")
-    if not proposals:
+    """Self-driving sweep: portfolio scan → proactive proposals + failure→eval
+    (+ optional config tuning behind the eval gate). The momentum loop."""
+    from . import sweep
+    d = sweep.run(_conn(), tune=getattr(args, "tune", False))
+    if d["proposals"]:
+        print("proactive proposals:")
+        for p in d["proposals"]:
+            print(f"  - {p}")
+    else:
         print("sweep clean: no stalled or failed work detected.")
-        return
-    print("proactive proposals:")
-    for p in proposals:
-        print(f"  - {p}")
-        emit(conn, "proactive.proposal", detail=p)
+    print(f"\nimprove: {d['improve']}   tune: {d['tune']}   "
+          f"pending approvals: {d['pending_approvals']}")
 
 
 def cmd_profiles(args):
@@ -366,7 +363,8 @@ def build_parser():
     cf.set_defaults(fn=cmd_config)
     a = sub.add_parser("approvals"); a.add_argument("--approve"); a.add_argument("--deny")
     a.set_defaults(fn=cmd_approvals)
-    sub.add_parser("recurring").set_defaults(fn=cmd_recurring)
+    rc = sub.add_parser("recurring"); rc.add_argument("--tune", action="store_true")
+    rc.set_defaults(fn=cmd_recurring)
     sub.add_parser("profiles").set_defaults(fn=cmd_profiles)
     hp = sub.add_parser("harness"); hp.add_argument("name", choices=["coding", "report", "browser"])
     hp.add_argument("--spec"); hp.add_argument("--goal"); hp.add_argument("--workspace")

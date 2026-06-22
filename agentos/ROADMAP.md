@@ -77,7 +77,16 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   them. 1 eval case + a test.
 - ⏳ Next: a thin web control plane reading the same DB + a live event stream.
 
-## M7 — External-intelligence loop + multi-machine
+## M7 — Self-driving momentum loop + external intelligence + multi-machine  ◑
+- ✅ Self-driving recurring sweep (`aos recurring [--tune]`, `aos/sweep.py`):
+  portfolio scan → proactive proposals for failed/blocked/stalled work + the
+  failure→eval converter (+ optional config tuning behind the eval gate). The
+  system proposes its own next work instead of going idle. 1 eval case + a test.
+  (Fixed a meta-recursion: improve now scores against a core suite that excludes
+  the sweep case.)
+- ⏳ Next: external-intelligence digest loop; hub-worker scale-out.
+
+## M7 details — External-intelligence loop + multi-machine
 Scheduled digest of open-source agent architecture → ranked experiments → evals.
 Hub-worker scale-out: multiple workers, then multiple machines on one task graph
 (git worktrees per owned lane).

@@ -346,6 +346,21 @@ def case_rollup_altitudes():
     return ok, f"portfolio goals={port['goals']} done={port['done']} failed={port['failed']} attention={len(port['attention'])}"
 
 
+def case_recurring_sweep_proposes_and_improves():
+    """The momentum sweep surfaces neglected work and runs the failure→eval loop."""
+    from .. import sweep
+    conn, _ = _fresh()
+    engine.run(conn, engine.create_goal(conn, "ok one"))           # healthy
+    engine.run(conn, engine.create_goal(conn, "bad one", tasks=[
+        {"title": "fails", "kind": "noop", "spec": {},
+         "verification": {"type": "file_exists", "path": "no.md"}, "max_attempts": 1}]))
+    d = sweep.run(conn)
+    proposed = any("bad one" in p for p in d["proposals"])
+    swept = conn.execute("SELECT COUNT(*) c FROM events WHERE kind='recurring.sweep'").fetchone()["c"]
+    ok = proposed and d["improve"] in ("noop", "materialize_regression_eval") and swept == 1
+    return ok, f"proposals={len(d['proposals'])} improve={d['improve']}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -368,7 +383,27 @@ CASES = {
     "browser_qa_rejects_failed_flow": case_browser_qa_rejects_failed_flow,
     "ask_router_classifies": case_ask_router_classifies,
     "rollup_altitudes": case_rollup_altitudes,
+    "recurring_sweep": case_recurring_sweep_proposes_and_improves,
 }
+
+
+# Meta cases invoke the improvement/sweep machinery; excluded from the suite that
+# improve.py scores against, to avoid recursion (and they aren't tuning signal).
+META_CASES = {"recurring_sweep"}
+
+
+def run_core_suite():
+    """The capability/safety core improve.py scores against (no meta-cases)."""
+    results = []
+    for name, fn in CASES.items():
+        if name in META_CASES:
+            continue
+        try:
+            passed, detail = fn()
+        except Exception as e:
+            passed, detail = False, f"exception: {e!r}"
+        results.append((name, passed, detail))
+    return results
 
 
 def run_suite(conn=None, suite="default"):

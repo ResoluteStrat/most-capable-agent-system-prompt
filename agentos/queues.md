@@ -5,13 +5,13 @@ These are the live human-facing momentum queues. The DB mirrors task state; this
 file is the at-a-glance operator view. Updated by `aos queues --sync`.
 
 ## now
-- M1–M6 done and verified (`aos selftest`; `aos eval` 21/21 timed + repeat-run
-  stable; 17/17 tests). Universal `aos ask` router + `aos rollup` altitude control
-  + 3 harnesses on a shared resumable base + browser adapter seam with skeptical QA.
+- M1–M7(sweep) done and verified (`aos selftest`; `aos eval` 22/22 timed +
+  repeat-run stable; 18/18 tests). Self-driving `aos recurring` momentum loop +
+  `aos ask` router + `aos rollup` altitude control + 3 harnesses + browser seam.
 
 ## next
-1. M7 — wire `improve.tune_config` + a portfolio-attention scan into the recurring
-   sweep so the system proposes its own next work and tunes itself when idle.
+1. M7 cont. — external-intelligence digest loop (capture source→claim→experiment
+   →eval candidate) as a new memory layer + `aos intel` command.
 2. M6 cont. — thin web control plane reading the same DB + a live event stream.
 3. M5 cont. — real Playwright backend behind `BrowserBackend`; session/auth reuse.
 

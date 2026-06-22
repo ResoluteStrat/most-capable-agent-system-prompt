@@ -26,7 +26,8 @@ GEN_DIR = Path(__file__).resolve().parent / "evals" / "generated"
 
 
 def _score(conn):
-    results = evals.run_suite(conn, suite="improve-probe")
+    # score against the core suite (excludes meta-cases that re-enter improve/sweep)
+    results = evals.run_core_suite()
     passed = sum(1 for _, p, _ in results if p)
     return passed, len(results)
 
@@ -115,4 +116,4 @@ def tune_config(conn) -> dict:
 
 
 def _eval_pass_count() -> int:
-    return sum(1 for _, passed, _ in evals.run_suite() if passed)
+    return sum(1 for _, passed, _ in evals.run_core_suite() if passed)
