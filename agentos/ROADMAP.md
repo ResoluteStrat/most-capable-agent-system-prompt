@@ -111,6 +111,16 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   OPTIONAL — returns [] on any failure, never crashes the loop). 1 eval + a test.
 - ⏳ Next: cross-machine git-worktree lanes per worker.
 
+## Reliability hardening — idempotent effects + sagas  ✅
+- `aos/effects.py` + `effects` table (rules 16-17): every side-effecting action
+  goes through the ledger with an **idempotency key** so a retry replays the
+  recorded result instead of re-applying the effect; every forward action records
+  a **compensation** so a multi-step workflow rolls back on partial failure
+  (saga). Queryable via `aos effects`. 2 eval cases + 2 tests (action-runs-once;
+  3-step saga compensates prior steps in reverse when the last fails).
+- ⏳ Next: route the engine's high-risk side-effecting executors through the
+  ledger (keyed by task id) so retried tasks never double-apply.
+
 ## M7 details — External-intelligence loop + multi-machine
 Scheduled digest of open-source agent architecture → ranked experiments → evals.
 Hub-worker scale-out: multiple workers, then multiple machines on one task graph

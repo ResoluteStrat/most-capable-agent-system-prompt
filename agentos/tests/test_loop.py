@@ -180,6 +180,30 @@ def test_two_workers_no_double_execution():
     assert done == 10 and runs == 10        # exactly one run per task; no double execution
 
 
+def test_effect_idempotency_runs_action_once():
+    from aos import effects
+    conn = _fresh()
+    calls = {"n": 0}
+    do = lambda: (calls.__setitem__("n", calls["n"] + 1) or {"id": "T1"})
+    r1 = effects.commit(conn, "k", "email", do)
+    r2 = effects.commit(conn, "k", "email", do)
+    assert calls["n"] == 1 and r1 == r2 == {"id": "T1"}
+
+
+def test_saga_compensates_on_partial_failure():
+    from aos import effects
+    conn = _fresh()
+    st = {"crm": False}
+    out = effects.saga(conn, "s", [
+        {"key": "a", "kind": "crm", "do": lambda: st.__setitem__("crm", True) or {"ok": 1},
+         "undo": lambda: st.__setitem__("crm", False)},
+        {"key": "b", "kind": "deploy", "do": lambda: (_ for _ in ()).throw(RuntimeError("x"))},
+    ])
+    assert out["status"] == "rolled_back" and st["crm"] is False
+    statuses = {r["idempotency_key"]: r["status"] for r in effects.ledger(conn)}
+    assert statuses["a"] == "compensated" and statuses["b"] == "failed"
+
+
 def test_web_snapshot_and_event_stream():
     from aos import web
     conn = _fresh()

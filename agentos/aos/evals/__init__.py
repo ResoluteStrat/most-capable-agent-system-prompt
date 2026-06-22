@@ -455,6 +455,48 @@ def case_fetcher_parses_and_feeds_intel():
     return ok, f"parsed={len(items)} counts={d['counts']} promoted={summary['promoted_experiments']}"
 
 
+def case_effect_idempotency():
+    """A committed effect replays its result without re-running the action — the
+    side effect happens exactly once even across retries with the same key."""
+    from .. import effects
+    conn, _ = _fresh()
+    calls = {"n": 0}
+
+    def do():
+        calls["n"] += 1
+        return {"ticket": "T-1"}
+    r1 = effects.commit(conn, "create-ticket:order-9", "ticket", do)
+    r2 = effects.commit(conn, "create-ticket:order-9", "ticket", do)   # retry, same key
+    ok = calls["n"] == 1 and r1 == r2 == {"ticket": "T-1"}
+    return ok, f"side_effect_runs={calls['n']} (expected 1) result_stable={r1 == r2}"
+
+
+def case_saga_rolls_back_on_failure():
+    """A 3-step saga whose last step fails compensates the prior committed steps in
+    reverse — no half-complete state left across systems."""
+    from .. import effects
+    conn, _ = _fresh()
+    state = {"crm": False, "billing": False}
+
+    def book_crm(): state.__setitem__("crm", True); return {"ok": 1}
+    def undo_crm(): state.__setitem__("crm", False)
+    def book_billing(): state.__setitem__("billing", True); return {"ok": 1}
+    def undo_billing(): state.__setitem__("billing", False)
+    def deploy(): raise RuntimeError("deploy failed")
+
+    out = effects.saga(conn, "onboard", [
+        {"key": "crm:acct-1", "kind": "crm", "do": book_crm, "undo": undo_crm},
+        {"key": "bill:acct-1", "kind": "billing", "do": book_billing, "undo": undo_billing},
+        {"key": "deploy:acct-1", "kind": "deploy", "do": deploy},
+    ])
+    statuses = {r["idempotency_key"]: r["status"] for r in effects.ledger(conn)}
+    rolled_back = (out["status"] == "rolled_back" and not state["crm"] and not state["billing"]
+                   and statuses.get("crm:acct-1") == "compensated"
+                   and statuses.get("bill:acct-1") == "compensated"
+                   and statuses.get("deploy:acct-1") == "failed")
+    return rolled_back, f"saga={out['status']} crm={state['crm']} billing={state['billing']} statuses={statuses}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -482,6 +524,8 @@ CASES = {
     "web_snapshot_and_events": case_web_snapshot_and_events,
     "two_workers_no_double_execution": case_two_workers_no_double_execution,
     "fetcher_parses_and_feeds_intel": case_fetcher_parses_and_feeds_intel,
+    "effect_idempotency": case_effect_idempotency,
+    "saga_rolls_back_on_failure": case_saga_rolls_back_on_failure,
 }
 
 

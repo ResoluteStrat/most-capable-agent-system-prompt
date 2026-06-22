@@ -20,6 +20,7 @@ Commands:
   intel [--add f.json | --fetch url|feed.xml]  external-intelligence loop: fetch/ingest/rank
   web [--port 8787]                           read-only web control plane + live events
   worker [--id W] [--goal ID]                 pull-based worker daemon (run several)
+  effects                                     idempotent effect ledger (sagas)
   profiles                                     list behavior profiles + model routing
   harness coding [--spec f.json] [--goal ID]   run the coding & delivery state machine
                  [--no-resume]                 (plan→change→test→review→gate; resumable)
@@ -350,6 +351,17 @@ def cmd_worker(args):
     print(json.dumps(out, indent=2))
 
 
+def cmd_effects(args):
+    from . import effects
+    rows = effects.ledger(_conn())
+    if not rows:
+        print("effect ledger empty.")
+        return
+    for r in rows:
+        print(f"  [{r['status']:11}] {r['kind']:12} {r['idempotency_key']}"
+              + (f"  saga={r['saga']}" if r['saga'] else ""))
+
+
 def cmd_web(args):
     from . import web
     web.serve(port=args.port)
@@ -414,6 +426,7 @@ def build_parser():
     it.add_argument("--source"); it.set_defaults(fn=cmd_intel)
     wb = sub.add_parser("web"); wb.add_argument("--port", type=int, default=8787)
     wb.set_defaults(fn=cmd_web)
+    sub.add_parser("effects").set_defaults(fn=cmd_effects)
     wk = sub.add_parser("worker"); wk.add_argument("--id", default="worker-1")
     wk.add_argument("--goal"); wk.add_argument("--max-idle", type=int, default=3)
     wk.set_defaults(fn=cmd_worker)

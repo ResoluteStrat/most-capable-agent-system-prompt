@@ -11,14 +11,15 @@ file is the at-a-glance operator view. Updated by `aos queues --sync`.
   browser seam + skeptical QA · `aos ask` router · `aos rollup` altitude ·
   self-driving `aos recurring` · `aos intel` external-intelligence (+ swappable
   RSS/Atom/JSON fetcher) · `aos web` read-only control plane · `aos worker`
-  multi-worker scale-out (zero double-execution, proven across threads AND processes).
+  multi-worker scale-out (zero double-execution, proven across threads AND
+  processes) · `aos effects` idempotent effect ledger + sagas (rules 16-17).
 
 ## next
-1. M5 cont. — real Playwright backend behind `BrowserBackend` (deferred: needs a
-   real browser + dep, unverifiable here; the seam is ready for when it isn't).
+1. Reliability cont. — route the engine's high-risk side-effecting executors
+   through the effect ledger (keyed by task id) so retried tasks never double-apply.
 2. M7 cont. — cross-machine git-worktree lanes per worker for parallel coding.
-3. Hardening — idempotent effect layer for side-effecting executors (idempotency
-   keys + compensating actions) per the prompt's reliability rules 16–17.
+3. M5 cont. — real Playwright backend behind `BrowserBackend` (deferred: needs a
+   real browser + dep, unverifiable here; the seam is ready for when it isn't).
 
 ## blocked
 - (none) — single-machine, stdlib build has no external blockers right now.

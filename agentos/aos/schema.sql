@@ -100,6 +100,21 @@ CREATE TABLE IF NOT EXISTS harness_runs (
     updated_at  TEXT NOT NULL
 );
 
+-- Idempotent effect ledger (reliability rules 16-17): every side-effecting action
+-- carries an idempotency key + a recorded compensation, so retries don't double-
+-- apply and partial multi-step failures can roll back (sagas).
+CREATE TABLE IF NOT EXISTS effects (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts              TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    kind            TEXT NOT NULL,
+    status          TEXT NOT NULL,                 -- committed/compensated/failed/skipped
+    result          TEXT NOT NULL DEFAULT '{}',
+    compensation    TEXT NOT NULL DEFAULT '',      -- human-readable rollback descriptor
+    saga            TEXT NOT NULL DEFAULT '',
+    updated_at      TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS approvals (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
     ts        TEXT NOT NULL,
