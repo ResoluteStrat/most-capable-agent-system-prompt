@@ -14,8 +14,8 @@ runtime (Claude Code on an ephemeral Linux container), 2026-06-21.
 | Network | partial | Governed by env network policy. Don't assume egress. |
 | Package install | partial | Avoid — harness is **stdlib-only** by design (portability). |
 | Local database | yes | SQLite via stdlib `sqlite3` (WAL). Control plane. |
-| Browser control | no | **Deferred.** Adapter stub planned (ROADMAP M5). |
-| Screenshot / vision | no | Deferred with browser/desktop. |
+| Browser control | seam | **Adapter shipped** (`aos/adapters/browser.py`) with a deterministic `SimBrowser` backend + evidence capture + skeptical QA. Real Playwright/CDP backend drops in behind `BrowserBackend` (ROADMAP M5). |
+| Screenshot / vision | text | Evidence = before/after text snapshots per action. Real screenshots arrive with a real backend. |
 | Desktop input | no | Deferred. |
 | Tool calling | yes | Native to the host agent. |
 | Sub-agent support | yes | `Agent` tool — used only when work is parallel/reviewer-split. |

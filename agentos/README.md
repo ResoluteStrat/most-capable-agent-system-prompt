@@ -51,7 +51,8 @@ cat projects/*onboarding*/status.md  # the file-first project pack
 | `aos/config.py` | Transparent, versioned, tunable surface (`state/config.json` over defaults) the self-improvement loop is allowed to touch. |
 | `aos/improve.py` | Bounded, safe, logged self-improvement: recurring failures → regression evals; **`tune_config`** runs a one-change keep/revert loop behind the eval gate (strictly-better-or-revert). |
 | `aos/evals/` | 12 cases (capability / behavioral / regression / safety / structure / **adversarial** / **long-horizon**), each timed; `stability()` checks repeat-run determinism. |
-| `aos/harness/` | Specialized **state-machine** harnesses. `base.py` is a generic resumable phase machine; `coding_delivery.py` is plan→change→test→review→gate (builder ≠ reviewer), resumable from any phase via a checkpoint. |
+| `aos/harness/` | Specialized **state-machine** harnesses on a shared resumable `base.py`: `coding_delivery` (plan→change→test→review→gate), `document_report` (schema-gated, programmatic output), `browser_research` (open→act→extract→qa). |
+| `aos/adapters/browser.py` + `browser_qa.py` | Browser adapter seam: stable `BrowserBackend` + deterministic `SimBrowser`, observe-before-act, per-action evidence; a skeptical QA evaluator separate from the actor. Real Playwright backend drops in unchanged. |
 | `aos/db.py`, `aos/schema.sql` | SQLite (WAL) control plane: goals, tasks, events, runs, memory, evals, approvals, harness_runs. |
 | `aos/cli.py` | The human control plane (`goal/run/status/dash/metrics/eval/improve/approvals/recurring/queues/selftest`). |
 

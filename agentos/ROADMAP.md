@@ -51,9 +51,18 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
 - ⏳ Next: extract the workspace-fix/reapply policy into a documented harness
   contract; add a finance/reporting harness variant on the same base.
 
-## M5 — Computer-use adapters
-Browser adapter (named actions, observe-before-act, evidence capture, session
-reuse) + a skeptical QA evaluator separate from the builder. Desktop later.
+## M5 — Computer-use adapters  ◑ (browser seam shipped)
+- ✅ Browser adapter (`aos/adapters/browser.py`): stable `BrowserBackend`
+  interface + deterministic `SimBrowser` backend; `BrowserSession` enforces
+  observe-before-act and writes before/after evidence per action.
+- ✅ Skeptical QA evaluator (`aos/adapters/browser_qa.py`), separate from the
+  actor, fails closed — certifies only on positive evidence.
+- ✅ `browser_research` harness (open→act→extract→qa) on the shared base (3rd
+  harness). `aos harness browser`. 2 eval cases (happy / QA-rejects-failed-flow).
+- ⏳ Next: real backend (Playwright/CDP) behind `BrowserBackend`; session/auth
+  reuse; selector healing; desktop adapter. Cross-process resume of a live
+  browser flow is out of scope (browser state isn't durable — flows run in one
+  invocation; deterministic re-run is the recovery model).
 
 ## M6 — Human interface surfaces
 Universal ask surface + altitude control (task → project → portfolio). CLI first,

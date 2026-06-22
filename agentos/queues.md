@@ -5,15 +5,14 @@ These are the live human-facing momentum queues. The DB mirrors task state; this
 file is the at-a-glance operator view. Updated by `aos queues --sync`.
 
 ## now
-- M1 + M2 + M3-core + M4-first-harness done and verified (`aos selftest`;
-  `aos eval` 15/15 timed + repeat-run stable; 15/15 tests). Coding & delivery
-  harness (plan→change→test→review→gate) is resumable from any phase.
+- M1–M5(seam) done and verified (`aos selftest`; `aos eval` 19/19 timed +
+  repeat-run stable; 15/15 tests). Three harnesses on a shared resumable base
+  (coding, report, browser) + a browser adapter seam with skeptical QA.
 
 ## next
-1. M4 cont. — a **document/report** harness on the same base, with schema-
-   validated phase boundaries + programmatic templated output (not free-form).
-2. M5 — browser adapter slot (named actions, observe-before-act, evidence
-   capture) + a skeptical QA evaluator separate from the builder.
+1. M6 — Human interface: an `aos ask "<intent>"` universal entry that infers
+   answer/task/harness/report and routes; altitude control (task→project→portfolio).
+2. M5 cont. — real Playwright backend behind `BrowserBackend`; session/auth reuse.
 3. M3 follow-up — wire `improve.tune_config` into the recurring sweep so tuning is
    attempted automatically when eval headroom appears.
 

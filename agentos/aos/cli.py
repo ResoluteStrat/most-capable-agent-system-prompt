@@ -191,13 +191,22 @@ def cmd_harness(args):
     from pathlib import Path
 
     from . import engine
-    from .harness import coding_delivery, document_report
+    from .harness import browser_research, coding_delivery, document_report
     conn = _conn()
+    _site = {"https://demo/login": {"text": "Login", "links": {},
+                                    "fields": {"user": "", "pass": ""},
+                                    "submit": {"to": "https://demo/home", "requires": {"user": "ada"}}},
+             "https://demo/home": {"text": "Welcome ada", "links": {}, "fields": {}}}
     defaults = {
         "coding": {"plan": "demo change", "files": {"hello.py": "print('hi')\n"}, "test_cmd": "true"},
         "report": {"data": {"title": "Weekly Report", "period": "2026-W25",
                             "metrics": {"tasks_done": 15, "eval_pass_rate": 1.0},
                             "findings": ["loop stable", "no regressions"]}},
+        "browser": {"site": _site, "start": "https://demo/login",
+                    "steps": [{"action": "type", "field": "user", "value": "ada"},
+                              {"action": "click", "target": "submit"}],
+                    "extract": {"contains": "Welcome"},
+                    "goal": {"final_url": "https://demo/home", "must_contain": ["Welcome"]}},
     }
     spec = json.loads(Path(args.spec).read_text()) if args.spec else defaults[args.name]
     goal_id = args.goal
@@ -205,7 +214,8 @@ def cmd_harness(args):
         goal_id = engine.create_goal(conn, f"Harness: {args.name}", tasks=[])
     goal = conn.execute("SELECT project_dir FROM goals WHERE id=?", (goal_id,)).fetchone()
     workspace = args.workspace or str(Path(goal["project_dir"]) / "artifacts" / "workspace")
-    harnesses = {"coding": coding_delivery.build, "report": document_report.build}
+    harnesses = {"coding": coding_delivery.build, "report": document_report.build,
+                 "browser": browser_research.build}
     h = harnesses[args.name]()
     out = h.run(conn, goal_id, {"workspace": workspace, "spec": spec}, resume=not args.no_resume)
     print(f"harness {out['harness']} → {out['status'].upper()} (last phase: {out['phase']})")
@@ -278,7 +288,7 @@ def build_parser():
     a.set_defaults(fn=cmd_approvals)
     sub.add_parser("recurring").set_defaults(fn=cmd_recurring)
     sub.add_parser("profiles").set_defaults(fn=cmd_profiles)
-    hp = sub.add_parser("harness"); hp.add_argument("name", choices=["coding", "report"])
+    hp = sub.add_parser("harness"); hp.add_argument("name", choices=["coding", "report", "browser"])
     hp.add_argument("--spec"); hp.add_argument("--goal"); hp.add_argument("--workspace")
     hp.add_argument("--no-resume", action="store_true"); hp.set_defaults(fn=cmd_harness)
     q = sub.add_parser("queues"); q.add_argument("--sync", action="store_true"); q.set_defaults(fn=cmd_queues)

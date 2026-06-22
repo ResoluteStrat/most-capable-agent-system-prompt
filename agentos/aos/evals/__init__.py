@@ -273,6 +273,45 @@ def case_report_harness_schema_gate():
     return refused and no_report, f"status={out['status']}@{out['phase']} no_report={no_report}"
 
 
+_BSITE = {
+    "https://demo/login": {"text": "Login", "links": {}, "fields": {"user": "", "pass": ""},
+                           "submit": {"to": "https://demo/home", "requires": {"user": "ada"}}},
+    "https://demo/home": {"text": "Welcome ada", "links": {}, "fields": {}},
+}
+
+
+def _browser_ctx(tmp, user="ada", goal=None):
+    return {"workspace": str(tmp / "ws"), "spec": {
+        "site": _BSITE, "start": "https://demo/login",
+        "steps": [{"action": "type", "field": "user", "value": user},
+                  {"action": "click", "target": "submit"}],
+        "extract": {"contains": "Welcome"},
+        "goal": goal or {"final_url": "https://demo/home", "must_contain": ["Welcome"]}}}
+
+
+def case_browser_flow_happy_path():
+    """A login flow reaches the home page; skeptical QA certifies it on evidence."""
+    from ..harness import browser_research
+    conn, tmp = _fresh()
+    gid = engine.create_goal(conn, "browser happy", tasks=[])
+    out = browser_research.build().run(conn, gid, _browser_ctx(tmp), resume=False)
+    ev = (tmp / "ws" / "browser_evidence")
+    shots = len(list(ev.glob("*.txt"))) if ev.exists() else 0
+    ok = out["status"] == "done" and shots > 0
+    return ok, f"status={out['status']} evidence_files={shots}"
+
+
+def case_browser_qa_rejects_failed_flow():
+    """Bad credentials never reach home; the SEPARATE QA evaluator fails the flow
+    at the qa phase even though the actor 'completed' its steps."""
+    from ..harness import browser_research
+    conn, tmp = _fresh()
+    gid = engine.create_goal(conn, "browser qa reject", tasks=[])
+    out = browser_research.build().run(conn, gid, _browser_ctx(tmp, user="wrong"), resume=False)
+    ok = out["status"] == "failed" and out["phase"] in ("extract", "qa")
+    return ok, f"status={out['status']}@{out['phase']} (builder ran, evaluator rejected)"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -291,6 +330,8 @@ CASES = {
     "harness_review_blocks_bad_change": case_harness_review_blocks_bad_change,
     "report_harness_happy_path": case_report_harness_happy_path,
     "report_harness_schema_gate": case_report_harness_schema_gate,
+    "browser_flow_happy_path": case_browser_flow_happy_path,
+    "browser_qa_rejects_failed_flow": case_browser_qa_rejects_failed_flow,
 }
 
 
