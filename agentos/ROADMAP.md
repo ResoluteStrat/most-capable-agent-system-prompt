@@ -75,7 +75,12 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   project → portfolio, with a portfolio "needs attention" inbox (failed/blocked
   work + pending approvals). Pure functions in `rollup.py` so a web UI can reuse
   them. 1 eval case + a test.
-- ⏳ Next: a thin web control plane reading the same DB + a live event stream.
+- ✅ Thin **web control plane** (`aos web`, `aos/web.py`): read-only stdlib
+  http.server exposing `/api/snapshot` (portfolio + metrics), `/api/events?since=`
+  (the live stream, polled), `/api/goal?id=`, and a single-page dashboard that
+  polls them every 2s. Same state, another surface; no mutations (CLI stays the
+  action surface). Data layer is pure functions; smoke-tested against a live
+  socket. 1 eval + a test.
 
 ## M7 — Self-driving momentum loop + external intelligence + multi-machine  ◑
 - ✅ Self-driving recurring sweep (`aos recurring [--tune]`, `aos/sweep.py`):

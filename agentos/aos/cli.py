@@ -18,6 +18,7 @@ Commands:
   approvals [--approve ID|--deny ID]          approval queue
   recurring                                   proactive sweep → propose goals
   intel [--add items.json]                    external-intelligence loop: ingest/rank
+  web [--port 8787]                           read-only web control plane + live events
   profiles                                     list behavior profiles + model routing
   harness coding [--spec f.json] [--goal ID]   run the coding & delivery state machine
                  [--no-resume]                 (plan→change→test→review→gate; resumable)
@@ -336,6 +337,11 @@ def cmd_ask(args):
         print("\n" + json.dumps(engine.metrics(conn)))
 
 
+def cmd_web(args):
+    from . import web
+    web.serve(port=args.port)
+
+
 def cmd_selftest(args):
     """M1 proof: full closed loop + eval suite, deterministic, repeatable."""
     print("AgentOS selftest — proving the closed loop\n")
@@ -392,6 +398,8 @@ def build_parser():
     rc = sub.add_parser("recurring"); rc.add_argument("--tune", action="store_true")
     rc.set_defaults(fn=cmd_recurring)
     it = sub.add_parser("intel"); it.add_argument("--add"); it.set_defaults(fn=cmd_intel)
+    wb = sub.add_parser("web"); wb.add_argument("--port", type=int, default=8787)
+    wb.set_defaults(fn=cmd_web)
     sub.add_parser("profiles").set_defaults(fn=cmd_profiles)
     hp = sub.add_parser("harness"); hp.add_argument("name", choices=["coding", "report", "browser"])
     hp.add_argument("--spec"); hp.add_argument("--goal"); hp.add_argument("--workspace")

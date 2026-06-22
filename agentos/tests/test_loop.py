@@ -155,6 +155,17 @@ def test_coding_harness_resumes_from_failed_phase():
     assert r2["phases"]["plan"] == "done" and r2["phases"]["change"] == "done"
 
 
+def test_web_snapshot_and_event_stream():
+    from aos import web
+    conn = _fresh()
+    g = engine.create_goal(conn, "w"); engine.run(conn, g)
+    snap = web.snapshot(conn)
+    assert snap["portfolio"]["goals"] == 1 and snap["metrics"]["tasks_completed"] == 3
+    evs = web.events_since(conn, 0)
+    assert len(evs) > 0 and all(evs[i]["id"] < evs[i + 1]["id"] for i in range(len(evs) - 1))
+    assert web.events_since(conn, evs[-1]["id"]) == []   # since-filter excludes seen
+
+
 def test_intel_ranks_and_promotes():
     from aos import intel
     conn = _fresh()

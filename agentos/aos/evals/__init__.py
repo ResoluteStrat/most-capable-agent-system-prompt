@@ -382,6 +382,21 @@ def case_intel_ranks_and_promotes():
     return ok, f"strong={strong} weak={weak} top={top['source']} promoted={promoted}"
 
 
+def case_web_snapshot_and_events():
+    """The web control plane exposes the same state as JSON (portfolio + metrics +
+    a since-filtered live event stream)."""
+    from .. import web
+    conn, _ = _fresh()
+    g = engine.create_goal(conn, "web demo"); engine.run(conn, g)
+    snap = web.snapshot(conn)
+    evs = web.events_since(conn, 0)
+    monotonic = all(evs[i]["id"] < evs[i + 1]["id"] for i in range(len(evs) - 1))
+    since_filter = web.events_since(conn, evs[-1]["id"]) == [] if evs else True
+    ok = (snap["portfolio"]["goals"] == 1 and snap["metrics"]["tasks_completed"] == 3
+          and len(evs) > 0 and monotonic and since_filter)
+    return ok, f"goals={snap['portfolio']['goals']} events={len(evs)} since_filter_ok={since_filter}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -406,6 +421,7 @@ CASES = {
     "rollup_altitudes": case_rollup_altitudes,
     "recurring_sweep": case_recurring_sweep_proposes_and_improves,
     "intel_ranks_and_promotes": case_intel_ranks_and_promotes,
+    "web_snapshot_and_events": case_web_snapshot_and_events,
 }
 
 

@@ -5,17 +5,19 @@ These are the live human-facing momentum queues. The DB mirrors task state; this
 file is the at-a-glance operator view. Updated by `aos queues --sync`.
 
 ## now
-- M1–M7 done and verified (`aos selftest`; `aos eval` 23/23 timed + repeat-run
-  stable; 19/19 tests). Self-driving `aos recurring` momentum loop + `aos intel`
-  external-intelligence loop + `aos ask` router + `aos rollup` altitude control +
-  3 harnesses on a shared resumable base + browser seam with skeptical QA.
+- M1–M7 done and verified (`aos selftest`; `aos eval` 24/24 timed + repeat-run
+  stable; 20/20 tests). Full surface: closed loop · profiles/routing/trust/
+  approvals · eval depth + safe self-improvement · 3 resumable harnesses ·
+  browser seam + skeptical QA · `aos ask` router · `aos rollup` altitude ·
+  self-driving `aos recurring` · `aos intel` external-intelligence · `aos web`
+  read-only control plane with live events.
 
 ## next
-1. M6 cont. — thin web control plane reading the same DB + a live event stream
-   (read-only HTTP over the existing state; stdlib http.server).
+1. M7 cont. — hub-worker scale-out: a second worker on the same task graph
+   (atomic claim already supports it) + a `--worker` loop daemon.
 2. M5 cont. — real Playwright backend behind `BrowserBackend`; session/auth reuse.
 3. M7 cont. — a swappable fetcher layer (RSS/changelog/release) feeding
-   `intel.ingest`; hub-worker scale-out for multi-machine.
+   `intel.ingest`.
 
 ## blocked
 - (none) — single-machine, stdlib build has no external blockers right now.
