@@ -155,6 +155,18 @@ def test_coding_harness_resumes_from_failed_phase():
     assert r2["phases"]["plan"] == "done" and r2["phases"]["change"] == "done"
 
 
+def test_rollup_aggregates_altitudes():
+    from aos import rollup
+    conn = _fresh()
+    g = engine.create_goal(conn, "x"); engine.run(conn, g)
+    port = rollup.portfolio_rollup(conn)
+    proj = rollup.project_rollup(conn, g)
+    assert port["goals"] == 1 and port["done"] == 1
+    assert proj["tasks_done"] == 3 and proj["status"] == "done"
+    tid = conn.execute("SELECT id FROM tasks WHERE goal_id=? LIMIT 1", (g,)).fetchone()["id"]
+    assert rollup.task_rollup(conn, tid)["status"] == "done"
+
+
 def test_ask_router_infers_modes():
     from aos import ask
     assert ask.classify("What is blocked?")["mode"] == "answer"

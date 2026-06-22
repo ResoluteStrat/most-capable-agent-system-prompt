@@ -326,6 +326,26 @@ def case_ask_router_classifies():
     return not wrong, f"misroutes={wrong}" if wrong else "5/5 intents routed correctly"
 
 
+def case_rollup_altitudes():
+    """The same state aggregates correctly at task / project / portfolio altitude."""
+    from .. import rollup
+    conn, _ = _fresh()
+    g1 = engine.create_goal(conn, "rollup A"); engine.run(conn, g1)
+    g2 = engine.create_goal(conn, "rollup B", tasks=[
+        {"title": "fails", "kind": "noop", "spec": {},
+         "verification": {"type": "file_exists", "path": "no.md"}, "max_attempts": 1}])
+    engine.run(conn, g2)
+    port = rollup.portfolio_rollup(conn)
+    proj = rollup.project_rollup(conn, g1)
+    a_task = conn.execute("SELECT id FROM tasks WHERE goal_id=? LIMIT 1", (g1,)).fetchone()["id"]
+    task = rollup.task_rollup(conn, a_task)
+    ok = (port["goals"] == 2 and port["done"] == 1 and port["failed"] == 1
+          and port["failed_tasks"] == 1 and len(port["attention"]) >= 1
+          and proj["status"] == "done" and proj["tasks_done"] == 3
+          and task["status"] == "done" and len(task["runs"]) >= 1)
+    return ok, f"portfolio goals={port['goals']} done={port['done']} failed={port['failed']} attention={len(port['attention'])}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -347,6 +367,7 @@ CASES = {
     "browser_flow_happy_path": case_browser_flow_happy_path,
     "browser_qa_rejects_failed_flow": case_browser_qa_rejects_failed_flow,
     "ask_router_classifies": case_ask_router_classifies,
+    "rollup_altitudes": case_rollup_altitudes,
 }
 
 

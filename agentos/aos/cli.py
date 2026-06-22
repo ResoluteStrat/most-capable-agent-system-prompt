@@ -7,6 +7,7 @@ Commands:
   goal "<title>" [--desc ...] [--mode ...]   intake a goal (creates a project pack)
   run [--goal ID] [--max N]                   drive eligible tasks to completion
   status [--goal ID]                          human-readable state
+  rollup [--goal ID | --task ID]              altitude control: portfolio→project→task
   dash                                        live dashboard (queues, recent events)
   queues [--sync]                             show / sync momentum queues
   metrics                                     proof-of-progress metrics
@@ -237,6 +238,46 @@ def cmd_queues(args):
     print(qf.read_text() if qf.exists() else "queues.md not found")
 
 
+def cmd_rollup(args):
+    """Altitude control: --task ID < --goal ID < (default) portfolio."""
+    from . import rollup
+    conn = _conn()
+    if args.task:
+        r = rollup.task_rollup(conn, args.task)
+        if not r:
+            print("no such task"); return
+        print(f"TASK {r['id']} — {r['title']}  [{r['status']}]")
+        print(f"  kind={r['kind']} risk={r['risk']} attempts={r['attempts']} tags={r['skill_tags']}")
+        print(f"  artifacts={r['artifacts']}")
+        for i, run in enumerate(r["runs"]):
+            print(f"  run {i}: ok={run['ok']} verified={run['verified']} cost={run['cost']}")
+        if r["escalation"]:
+            print(f"  escalation: {r['escalation']}")
+        return
+    if args.goal:
+        r = rollup.project_rollup(conn, args.goal)
+        if not r:
+            print("no such goal"); return
+        print(f"PROJECT {r['id']} — {r['title']}  [{r['status']}]")
+        print(f"  tasks {r['tasks_done']}/{r['tasks_total']} done  by_status={r['by_status']}")
+        print(f"  blocked={r['blocked']} failed={r['failed']} cost_ticks={r['cost_ticks']}")
+        print(f"  pack: {r['project_dir']}")
+        for h in r["harnesses"]:
+            print(f"  harness {h['harness']}: {h['status']} @ {h['phase']}")
+        return
+    r = rollup.portfolio_rollup(conn)
+    print("PORTFOLIO")
+    print(f"  goals: {r['goals']}  (active {r['active']} / done {r['done']} / failed {r['failed']})")
+    print(f"  tasks: blocked {r['blocked_tasks']} · failed {r['failed_tasks']}  "
+          f"cost_ticks {r['cost_ticks']}  pending_approvals {r['pending_approvals']}")
+    print("  NEEDS ATTENTION:" if r["attention"] else "  needs attention: none")
+    for a in r["attention"]:
+        print(f"    - {a}")
+    print("  projects:")
+    for p in r["projects"]:
+        print(f"    [{p['status']:6}] {p['id']}  {p['done']}/{p['total']}  {p['title']}")
+
+
 def cmd_ask(args):
     """Universal entry: infer the mode, show why, route. Reversible modes run;
     side-effecting ones are recommended (the user stays in control)."""
@@ -314,6 +355,8 @@ def build_parser():
     r = sub.add_parser("run"); r.add_argument("--goal"); r.add_argument("--max", type=int, default=100)
     r.set_defaults(fn=cmd_run)
     s = sub.add_parser("status"); s.add_argument("--goal"); s.set_defaults(fn=cmd_status)
+    rl = sub.add_parser("rollup"); rl.add_argument("--goal"); rl.add_argument("--task")
+    rl.set_defaults(fn=cmd_rollup)
     sub.add_parser("dash").set_defaults(fn=cmd_dash)
     sub.add_parser("metrics").set_defaults(fn=cmd_metrics)
     sub.add_parser("eval").set_defaults(fn=cmd_eval)

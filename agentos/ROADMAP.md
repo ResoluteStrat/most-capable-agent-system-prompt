@@ -71,8 +71,11 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   mode + why, and routes (reversible modes run; side-effecting ones are
   recommended). Below a confidence margin it surfaces alternatives instead of
   guessing. 1 eval case (5/5 intents) + a test.
-- ⏳ Next: altitude control (task → project → portfolio rollups over the same
-  state) and a thin web control plane reading the same DB + a live event stream.
+- ✅ Altitude control (`aos rollup`): the same state aggregated at task →
+  project → portfolio, with a portfolio "needs attention" inbox (failed/blocked
+  work + pending approvals). Pure functions in `rollup.py` so a web UI can reuse
+  them. 1 eval case + a test.
+- ⏳ Next: a thin web control plane reading the same DB + a live event stream.
 
 ## M7 — External-intelligence loop + multi-machine
 Scheduled digest of open-source agent architecture → ranked experiments → evals.

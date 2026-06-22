@@ -5,16 +5,15 @@ These are the live human-facing momentum queues. The DB mirrors task state; this
 file is the at-a-glance operator view. Updated by `aos queues --sync`.
 
 ## now
-- M1–M6(ask) done and verified (`aos selftest`; `aos eval` 20/20 timed +
-  repeat-run stable; 16/16 tests). Universal `aos ask` router + 3 harnesses on a
-  shared resumable base + browser adapter seam with skeptical QA.
+- M1–M6 done and verified (`aos selftest`; `aos eval` 21/21 timed + repeat-run
+  stable; 17/17 tests). Universal `aos ask` router + `aos rollup` altitude control
+  + 3 harnesses on a shared resumable base + browser adapter seam with skeptical QA.
 
 ## next
-1. M6 cont. — altitude control: `aos rollup` (task → project → portfolio) over the
-   same state, so the user can zoom without switching tools.
-2. M5 cont. — real Playwright backend behind `BrowserBackend`; session/auth reuse.
-3. M3 follow-up — wire `improve.tune_config` into the recurring sweep so tuning is
-   attempted automatically when eval headroom appears.
+1. M7 — wire `improve.tune_config` + a portfolio-attention scan into the recurring
+   sweep so the system proposes its own next work and tunes itself when idle.
+2. M6 cont. — thin web control plane reading the same DB + a live event stream.
+3. M5 cont. — real Playwright backend behind `BrowserBackend`; session/auth reuse.
 
 ## blocked
 - (none) — single-machine, stdlib build has no external blockers right now.
