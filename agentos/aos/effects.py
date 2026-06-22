@@ -84,5 +84,21 @@ def _upsert(conn, key, kind, status, result, compensation, saga):
     conn.commit()
 
 
+def guarded(conn, key, kind, runner):
+    """Run an executor-style `runner()` (returns a dict with an 'ok' flag) at most
+    once per key while it SUCCEEDS. A committed (ok) result is replayed on retry
+    without re-running the side effect; a failed result is left re-runnable so
+    transient failures can still retry. This is the engine's double-apply guard."""
+    row = _get(conn, key)
+    if row and row["status"] == "committed":
+        emit(conn, "effect.replayed", key=key, effect_kind=kind)
+        return jloads(row["result"], {"ok": True, "output": "replayed", "artifacts": []})
+    res = runner()
+    status = "committed" if res.get("ok") else "failed"
+    _upsert(conn, key, kind, status, res, "", "")
+    emit(conn, f"effect.{status}", key=key, effect_kind=kind)
+    return res
+
+
 def ledger(conn):
     return [dict(r) for r in conn.execute("SELECT * FROM effects ORDER BY id").fetchall()]

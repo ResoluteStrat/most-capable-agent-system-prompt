@@ -455,6 +455,26 @@ def case_fetcher_parses_and_feeds_intel():
     return ok, f"parsed={len(items)} counts={d['counts']} promoted={summary['promoted_experiments']}"
 
 
+def case_retried_side_effect_applies_once():
+    """A side-effecting (python) task that fails verification retries, but the
+    effect ledger replays the committed result — the side effect runs ONCE across
+    both attempts (the engine's double-apply guard)."""
+    conn, tmp = _fresh()
+    gid = engine.create_goal(conn, "side-effect once", tasks=[
+        {"title": "append once", "kind": "python", "risk": "low",
+         "spec": {"code": "open('count.txt','a').write('x\\n')"},
+         "verification": {"type": "file_contains", "path": "count.txt", "needle": "NEVER"},
+         "max_attempts": 2}])
+    engine.run(conn, gid)
+    t = conn.execute("SELECT * FROM tasks WHERE goal_id=?", (gid,)).fetchone()
+    countfile = Path(conn.execute("SELECT project_dir FROM goals WHERE id=?", (gid,)).fetchone()
+                     ["project_dir"]) / "count.txt"
+    lines = len(countfile.read_text().splitlines()) if countfile.exists() else 0
+    ev = conn.execute("SELECT COUNT(*) c FROM events WHERE kind='effect.replayed'").fetchone()["c"]
+    ok = t["attempts"] == 2 and lines == 1 and ev == 1   # 2 attempts, effect applied once, 1 replay
+    return ok, f"attempts={t['attempts']} effect_applications={lines} replays={ev}"
+
+
 def case_effect_idempotency():
     """A committed effect replays its result without re-running the action — the
     side effect happens exactly once even across retries with the same key."""
@@ -526,6 +546,7 @@ CASES = {
     "fetcher_parses_and_feeds_intel": case_fetcher_parses_and_feeds_intel,
     "effect_idempotency": case_effect_idempotency,
     "saga_rolls_back_on_failure": case_saga_rolls_back_on_failure,
+    "retried_side_effect_applies_once": case_retried_side_effect_applies_once,
 }
 
 

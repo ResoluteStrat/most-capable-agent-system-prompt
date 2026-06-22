@@ -11,11 +11,15 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
-from . import autonomy, executors, memory, profiles, projectpack, verify
+from . import autonomy, effects, executors, memory, profiles, projectpack, verify
 from .adapters import model as model_adapter
 from .db import emit, init_db, jdumps, jloads, now
 
 WORKER_ID = "worker-local-1"
+
+# Executors whose actions have external side effects → routed through the effect
+# ledger keyed by task id, so a retried task never double-applies.
+SIDE_EFFECTING = {"shell", "python"}
 
 
 def _id(prefix: str) -> str:
@@ -170,7 +174,12 @@ def tick(conn, goal_id=None, worker_id=WORKER_ID) -> dict | None:
     # reuse procedural memory if a matching recipe exists (memory-reuse metric)
     memory.find_recipe(conn, t["kind"], plan.get("type", "exec_ok"))
 
-    result = executors.run_executor(t["kind"], spec, project_dir)
+    if t["kind"] in SIDE_EFFECTING:
+        # idempotent: a committed side effect is replayed on retry, not re-run
+        result = effects.guarded(conn, f"task:{tid}", t["kind"],
+                                 lambda: executors.run_executor(t["kind"], spec, project_dir))
+    else:
+        result = executors.run_executor(t["kind"], spec, project_dir)
     passed, evidence = verify.verify(plan, result, project_dir)
 
     conn.execute("UPDATE runs SET finished=?, ok=?, verified=?, output=? WHERE id=?",

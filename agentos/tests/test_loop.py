@@ -180,6 +180,18 @@ def test_two_workers_no_double_execution():
     assert done == 10 and runs == 10        # exactly one run per task; no double execution
 
 
+def test_engine_retry_does_not_double_apply_side_effect():
+    conn = _fresh()
+    gid = engine.create_goal(conn, "once", tasks=[
+        {"title": "append", "kind": "python", "spec": {"code": "open('c.txt','a').write('x\\n')"},
+         "verification": {"type": "file_contains", "path": "c.txt", "needle": "NEVER"},
+         "max_attempts": 2}])
+    engine.run(conn, gid)
+    t = conn.execute("SELECT attempts FROM tasks WHERE goal_id=?", (gid,)).fetchone()
+    cf = Path(conn.execute("SELECT project_dir FROM goals WHERE id=?", (gid,)).fetchone()["project_dir"]) / "c.txt"
+    assert t["attempts"] == 2 and len(cf.read_text().splitlines()) == 1   # 2 tries, 1 application
+
+
 def test_effect_idempotency_runs_action_once():
     from aos import effects
     conn = _fresh()

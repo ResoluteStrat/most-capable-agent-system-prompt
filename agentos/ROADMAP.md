@@ -118,8 +118,11 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   a **compensation** so a multi-step workflow rolls back on partial failure
   (saga). Queryable via `aos effects`. 2 eval cases + 2 tests (action-runs-once;
   3-step saga compensates prior steps in reverse when the last fails).
-- ⏳ Next: route the engine's high-risk side-effecting executors through the
-  ledger (keyed by task id) so retried tasks never double-apply.
+- ✅ Engine integration: side-effecting executors (`shell`/`python`) now run
+  through `effects.guarded` keyed by task id, so a retried task REPLAYS its
+  committed result instead of re-applying the side effect. Proven through the real
+  engine: a python task retried twice applies its effect exactly once (1 apply,
+  1 replay). 1 eval + 1 test.
 
 ## M7 details — External-intelligence loop + multi-machine
 Scheduled digest of open-source agent architecture → ranked experiments → evals.
