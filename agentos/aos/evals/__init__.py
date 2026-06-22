@@ -12,6 +12,7 @@ Deterministic → repeat-run stable. Results are written to the `evals` table.
 """
 from __future__ import annotations
 
+import json
 import tempfile
 import time
 from pathlib import Path
@@ -556,6 +557,28 @@ def case_signal_waitpoint_resumes_across_processes():
     return blocked == "blocked" and resumed == "done", f"before={blocked} after_signal(fresh conn)={resumed}"
 
 
+def case_quarantine_captures_and_replay_recovers():
+    """A terminally-failed task is dead-lettered with an evidence bundle; after an
+    operator fixes the root cause, an EXPLICIT replay recovers it to done."""
+    from .. import quarantine
+    conn, _ = _fresh()
+    gid = engine.create_goal(conn, "quarantine", tasks=[
+        {"title": "needs a file", "kind": "noop", "spec": {},
+         "verification": {"type": "file_exists", "path": "fix.md"}, "max_attempts": 1}])
+    engine.run(conn, gid)
+    t = conn.execute("SELECT * FROM tasks WHERE goal_id=?", (gid,)).fetchone()
+    q = quarantine.listq(conn)
+    captured = len(q) == 1 and t["status"] == "failed" and json.loads(q[0]["evidence"]).get("reason")
+    # operator fixes the root cause, then explicitly replays
+    pdir = conn.execute("SELECT project_dir FROM goals WHERE id=?", (gid,)).fetchone()["project_dir"]
+    (__import__("pathlib").Path(pdir) / "fix.md").write_text("fixed")
+    r = quarantine.replay(conn, t["id"])
+    engine.run(conn, gid)
+    recovered = conn.execute("SELECT status FROM tasks WHERE id=?", (t["id"],)).fetchone()["status"]
+    ok = bool(captured) and r["ok"] and recovered == "done" and quarantine.listq(conn) == []
+    return ok, f"captured={bool(captured)} replay_ok={r['ok']} recovered={recovered}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -588,6 +611,7 @@ CASES = {
     "retried_side_effect_applies_once": case_retried_side_effect_applies_once,
     "timer_waitpoint_resumes_when_due": case_timer_waitpoint_resumes_when_due,
     "signal_waitpoint_resumes_across_processes": case_signal_waitpoint_resumes_across_processes,
+    "quarantine_captures_and_replay_recovers": case_quarantine_captures_and_replay_recovers,
 }
 
 

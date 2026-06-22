@@ -180,6 +180,23 @@ def test_two_workers_no_double_execution():
     assert done == 10 and runs == 10        # exactly one run per task; no double execution
 
 
+def test_quarantine_captures_and_replay_recovers():
+    from aos import quarantine
+    conn = _fresh()
+    g = engine.create_goal(conn, "q", tasks=[
+        {"title": "needs file", "kind": "noop", "spec": {},
+         "verification": {"type": "file_exists", "path": "fix.md"}, "max_attempts": 1}])
+    engine.run(conn, g)
+    t = conn.execute("SELECT * FROM tasks WHERE goal_id=?", (g,)).fetchone()
+    assert t["status"] == "failed" and len(quarantine.listq(conn)) == 1
+    pdir = conn.execute("SELECT project_dir FROM goals WHERE id=?", (g,)).fetchone()["project_dir"]
+    (Path(pdir) / "fix.md").write_text("ok")
+    assert quarantine.replay(conn, t["id"])["ok"]
+    engine.run(conn, g)
+    assert conn.execute("SELECT status FROM tasks WHERE id=?", (t["id"],)).fetchone()["status"] == "done"
+    assert quarantine.listq(conn) == []          # cleared after recovery
+
+
 def test_timer_waitpoint_blocks_then_resumes():
     conn = _fresh()
     g = engine.create_goal(conn, "t", tasks=[

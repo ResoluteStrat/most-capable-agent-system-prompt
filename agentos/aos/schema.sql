@@ -106,6 +106,23 @@ CREATE TABLE IF NOT EXISTS harness_runs (
 -- Durable waitpoints (reliability rules 18-19): a run can pause for an approval,
 -- a scheduled time (timer), or an external signal (webhook), with its exact state
 -- on disk so a fresh process resumes from the waitpoint instead of from zero.
+-- Quarantine / dead-letter (rule 21): a terminally-failed task is captured here
+-- with an evidence bundle. Replay is EXPLICIT (operator-driven), never a silent
+-- retry storm. Repeated re-quarantine after replay flags poison.
+CREATE TABLE IF NOT EXISTS quarantine (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts          TEXT NOT NULL,
+    task_id     TEXT NOT NULL,
+    goal_id     TEXT,
+    reason      TEXT NOT NULL DEFAULT '',
+    attempts    INTEGER NOT NULL DEFAULT 0,
+    evidence    TEXT NOT NULL DEFAULT '{}',
+    status      TEXT NOT NULL DEFAULT 'quarantined',  -- quarantined/replayed
+    replays     INTEGER NOT NULL DEFAULT 0,
+    updated_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_quarantine_task ON quarantine(task_id);
+
 CREATE TABLE IF NOT EXISTS waitpoints (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     ts          TEXT NOT NULL,

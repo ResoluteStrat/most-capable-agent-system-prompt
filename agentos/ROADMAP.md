@@ -123,6 +123,12 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   committed result instead of re-applying the side effect. Proven through the real
   engine: a python task retried twice applies its effect exactly once (1 apply,
   1 replay). 1 eval + 1 test.
+- ✅ Quarantine / dead-letter (`aos/quarantine.py` + `quarantine` table, rule 21):
+  a terminally-failed task is captured with an evidence bundle (reason, attempts,
+  last output, verifier evidence) instead of thrashing. Replay is EXPLICIT
+  (`aos replay <task_id>`); a task re-quarantined ≥3 times is flagged POISON and
+  refused. `aos quarantine` lists the queue. Proven: capture → operator fixes root
+  cause → explicit replay → recovers to done. 1 eval + 1 test.
 - ✅ Durable waitpoints (`aos/waitpoints.py` + `waitpoints` table, rules 18-19):
   a `wait` task pauses on a **timer** (resume when now ≥ wake_at), a **signal**
   (resume when delivered, e.g. a webhook), or **approval** — with exact state on

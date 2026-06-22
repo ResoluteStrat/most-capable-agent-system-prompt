@@ -21,6 +21,7 @@ Commands:
   web [--port 8787]                           read-only web control plane + live events
   worker [--id W] [--goal ID]                 pull-based worker daemon (run several)
   effects                                     idempotent effect ledger (sagas)
+  quarantine | replay <task_id>               dead-letter queue: list / explicit replay
   waits | signal <name>                       durable waitpoints: list / deliver a signal
   profiles                                     list behavior profiles + model routing
   harness coding [--spec f.json] [--goal ID]   run the coding & delivery state machine
@@ -370,6 +371,31 @@ def cmd_waits(args):
         print(f"  task={r['task_id']}  {r['kind']}  until/on={cond}  ({r['reason']})")
 
 
+def cmd_quarantine(args):
+    from . import quarantine
+    rows = quarantine.listq(_conn())
+    if not rows:
+        print("quarantine empty — no dead-lettered tasks.")
+        return
+    for r in rows:
+        ev = json.loads(r["evidence"]) if r["evidence"] else {}
+        poison = " [POISON]" if r["replays"] >= quarantine.POISON_REPLAYS else ""
+        print(f"  task={r['task_id']}  attempts={r['attempts']}  replays={r['replays']}{poison}")
+        print(f"      reason: {r['reason']}")
+        if ev.get("last_output"):
+            print(f"      last: {ev['last_output'][:120].strip()}")
+    print("\nexplicit replay: python -m aos replay <task_id>")
+
+
+def cmd_replay(args):
+    from . import quarantine
+    out = quarantine.replay(_conn(), args.task_id)
+    if out["ok"]:
+        print(f"replayed {args.task_id} (replay #{out['replays']}). run: python -m aos run")
+    else:
+        print(f"cannot replay: {out['reason']}")
+
+
 def cmd_effects(args):
     from . import effects
     rows = effects.ledger(_conn())
@@ -446,6 +472,8 @@ def build_parser():
     wb = sub.add_parser("web"); wb.add_argument("--port", type=int, default=8787)
     wb.set_defaults(fn=cmd_web)
     sub.add_parser("effects").set_defaults(fn=cmd_effects)
+    sub.add_parser("quarantine").set_defaults(fn=cmd_quarantine)
+    rp = sub.add_parser("replay"); rp.add_argument("task_id"); rp.set_defaults(fn=cmd_replay)
     sg = sub.add_parser("signal"); sg.add_argument("name"); sg.set_defaults(fn=cmd_signal)
     sub.add_parser("waits").set_defaults(fn=cmd_waits)
     wk = sub.add_parser("worker"); wk.add_argument("--id", default="worker-1")

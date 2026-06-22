@@ -11,7 +11,8 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
-from . import autonomy, effects, executors, memory, profiles, projectpack, verify, waitpoints
+from . import (autonomy, effects, executors, memory, profiles, projectpack,
+               quarantine, verify, waitpoints)
 from .adapters import model as model_adapter
 from .db import emit, init_db, jdumps, jloads, now
 
@@ -273,6 +274,7 @@ def _fail(conn, t, reason, evidence=None):
     emit(conn, "task.failed", goal_id=t["goal_id"], task_id=tid, reason=reason)
     memory.record(conn, "episodic", f"task.failed:{tid}", f"{t['title']}: {reason}",
                   provenance=f"task:{tid}", confidence=0.9)
+    quarantine.record(conn, t, reason, evidence)   # dead-letter with evidence bundle
     _learn_failure(conn, t, reason)
     _update_goal_status(conn, t["goal_id"])
     projectpack.render(conn, t["goal_id"])
