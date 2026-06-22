@@ -180,6 +180,21 @@ def test_two_workers_no_double_execution():
     assert done == 10 and runs == 10        # exactly one run per task; no double execution
 
 
+def test_failed_task_auto_compensates_declared_side_effect():
+    from aos import effects, trace
+    conn = _fresh()
+    g = engine.create_goal(conn, "comp", tasks=[
+        {"title": "commit then fail", "kind": "python",
+         "spec": {"code": "open('did.txt','w').write('x')",
+                  "on_fail_compensate": {"kind": "python", "code": "import os; os.remove('did.txt')"}},
+         "verification": {"type": "file_contains", "path": "did.txt", "needle": "NEVER"},
+         "max_attempts": 1}])
+    engine.run(conn, g)
+    t = conn.execute("SELECT * FROM tasks WHERE goal_id=?", (g,)).fetchone()
+    assert effects.status(conn, f"task:{t['id']}") == "compensated"
+    assert trace.task_trace(conn, t["id"])["clean"] is True
+
+
 def test_trace_judge_flags_dangerous_path():
     from aos import trace
     conn = _fresh()

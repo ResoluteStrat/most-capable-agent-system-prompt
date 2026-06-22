@@ -123,6 +123,11 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   committed result instead of re-applying the side effect. Proven through the real
   engine: a python task retried twice applies its effect exactly once (1 apply,
   1 replay). 1 eval + 1 test.
+- ✅ Auto-compensation (closes the trace-judge loop): a task can declare
+  `on_fail_compensate` (an executor spec); on terminal failure with a committed
+  side effect the engine runs it, marks the effect compensated, and the trace
+  judge no longer flags an orphan. If no compensation is declared it emits
+  `compensation.required` — never pretends to undo. 1 eval + 1 test.
 - ✅ Trajectory tracing + path judge (`aos/trace.py`, rule 22): assembles a task's
   events into an ordered trajectory and JUDGES the path, not just the outcome —
   flags orphaned side effects, success-despite-a-denied-action, excessive retries,

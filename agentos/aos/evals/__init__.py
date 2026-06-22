@@ -605,6 +605,29 @@ def case_trace_judges_the_path_not_just_outcome():
         f"clean_path_ok={clean_ok} dangerous_flagged={flagged} spans={len(tr['spans'])}"
 
 
+def case_failed_task_auto_compensates_side_effect():
+    """A failing task that committed a side effect and declared how to undo it gets
+    auto-compensated — the file is removed, the effect is marked compensated, and
+    the trace judge no longer flags an orphaned effect (loop closed)."""
+    from .. import effects, trace
+    conn, _ = _fresh()
+    gid = engine.create_goal(conn, "auto-compensate", tasks=[
+        {"title": "commit then fail (with undo)", "kind": "python",
+         "spec": {"code": "open('did.txt','w').write('x')",
+                  "on_fail_compensate": {"kind": "python", "code": "import os; os.remove('did.txt')"}},
+         "verification": {"type": "file_contains", "path": "did.txt", "needle": "NEVER"},
+         "max_attempts": 1}])
+    engine.run(conn, gid)
+    t = conn.execute("SELECT * FROM tasks WHERE goal_id=?", (gid,)).fetchone()
+    pdir = Path(conn.execute("SELECT project_dir FROM goals WHERE id=?", (gid,)).fetchone()["project_dir"])
+    eff_status = effects.status(conn, f"task:{t['id']}")
+    file_gone = not (pdir / "did.txt").exists()
+    tr = trace.task_trace(conn, t["id"])
+    no_orphan = not any("orphaned side effect" in f for f in tr["findings"])
+    ok = t["status"] == "failed" and eff_status == "compensated" and file_gone and no_orphan
+    return ok, f"status={t['status']} effect={eff_status} file_removed={file_gone} trace_clean={no_orphan}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -639,6 +662,7 @@ CASES = {
     "signal_waitpoint_resumes_across_processes": case_signal_waitpoint_resumes_across_processes,
     "quarantine_captures_and_replay_recovers": case_quarantine_captures_and_replay_recovers,
     "trace_judges_the_path_not_just_outcome": case_trace_judges_the_path_not_just_outcome,
+    "failed_task_auto_compensates_side_effect": case_failed_task_auto_compensates_side_effect,
 }
 
 

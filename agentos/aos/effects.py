@@ -100,5 +100,10 @@ def guarded(conn, key, kind, runner):
     return res
 
 
+def status(conn, key):
+    row = _get(conn, key)
+    return row["status"] if row else None
+
+
 def ledger(conn):
     return [dict(r) for r in conn.execute("SELECT * FROM effects ORDER BY id").fetchall()]

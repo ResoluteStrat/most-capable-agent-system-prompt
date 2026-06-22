@@ -275,10 +275,34 @@ def _fail(conn, t, reason, evidence=None):
     memory.record(conn, "episodic", f"task.failed:{tid}", f"{t['title']}: {reason}",
                   provenance=f"task:{tid}", confidence=0.9)
     quarantine.record(conn, t, reason, evidence)   # dead-letter with evidence bundle
+    _maybe_compensate(conn, t)                      # no orphaned side effects
     _learn_failure(conn, t, reason)
     _update_goal_status(conn, t["goal_id"])
     projectpack.render(conn, t["goal_id"])
     return {"task_id": tid, "title": t["title"], "result": "failed", "reason": reason}
+
+
+def _maybe_compensate(conn, t):
+    """If a failed task left a committed side effect, undo it. The task can declare
+    `on_fail_compensate` (an executor spec). If it can't, we emit
+    compensation.required (the trace judge surfaces it) — never pretend to undo."""
+    key = f"task:{t['id']}"
+    if effects.status(conn, key) != "committed":
+        return
+    spec = jloads(t["spec"], {})
+    comp = spec.get("on_fail_compensate")
+    if not comp:
+        emit(conn, "compensation.required", goal_id=t["goal_id"], task_id=t["id"])
+        return
+    project_dir = Path(conn.execute("SELECT project_dir FROM goals WHERE id=?",
+                                    (t["goal_id"],)).fetchone()["project_dir"])
+    res = executors.run_executor(comp["kind"], comp, project_dir)
+    if res.get("ok"):
+        effects.compensate(conn, key)              # undo already applied → mark compensated
+        emit(conn, "task.compensated", goal_id=t["goal_id"], task_id=t["id"])
+    else:
+        emit(conn, "compensation.failed", goal_id=t["goal_id"], task_id=t["id"],
+             output=res.get("output", "")[:200])
 
 
 def _update_goal_status(conn, goal_id):

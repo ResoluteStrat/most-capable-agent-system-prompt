@@ -17,11 +17,11 @@ file is the at-a-glance operator view. Updated by `aos queues --sync`.
   explicit replay (rules 16-21).
 
 ## next
-1. Reliability cont. — auto-compensate an orphaned side effect the trace judge
-   detects (close the loop: flag → compensate via the saga ledger).
-2. M7 cont. — cross-machine git-worktree lanes per worker for parallel coding.
-3. M5 cont. — real Playwright backend behind `BrowserBackend` (deferred: needs a
+1. M7 cont. — cross-machine git-worktree lanes per worker for parallel coding.
+2. M5 cont. — real Playwright backend behind `BrowserBackend` (deferred: needs a
    real browser + dep, unverifiable here; the seam is ready for when it isn't).
+3. Refresh DESIGN.md + CAPABILITY_MATRIX to reflect the reliability + interface
+   layers added since (effects/waits/quarantine/trace/compensation, ask/rollup/web).
 
 ## blocked
 - (none) — single-machine, stdlib build has no external blockers right now.
