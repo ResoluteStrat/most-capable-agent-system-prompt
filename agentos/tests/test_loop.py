@@ -180,6 +180,21 @@ def test_two_workers_no_double_execution():
     assert done == 10 and runs == 10        # exactly one run per task; no double execution
 
 
+def test_trace_judge_flags_dangerous_path():
+    from aos import trace
+    conn = _fresh()
+    g1 = engine.create_goal(conn, "clean"); engine.run(conn, g1)
+    t1 = conn.execute("SELECT id FROM tasks WHERE goal_id=? LIMIT 1", (g1,)).fetchone()["id"]
+    assert trace.task_trace(conn, t1)["clean"] is True
+    g2 = engine.create_goal(conn, "orphan", tasks=[
+        {"title": "commit then fail", "kind": "python", "spec": {"code": "open('d.txt','a').write('x')"},
+         "verification": {"type": "file_contains", "path": "d.txt", "needle": "NEVER"}, "max_attempts": 1}])
+    engine.run(conn, g2)
+    t2 = conn.execute("SELECT id FROM tasks WHERE goal_id=? LIMIT 1", (g2,)).fetchone()["id"]
+    tr = trace.task_trace(conn, t2)
+    assert tr["clean"] is False and any("orphaned side effect" in f for f in tr["findings"])
+
+
 def test_quarantine_captures_and_replay_recovers():
     from aos import quarantine
     conn = _fresh()

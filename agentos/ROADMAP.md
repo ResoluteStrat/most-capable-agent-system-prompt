@@ -123,6 +123,12 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   committed result instead of re-applying the side effect. Proven through the real
   engine: a python task retried twice applies its effect exactly once (1 apply,
   1 replay). 1 eval + 1 test.
+- ✅ Trajectory tracing + path judge (`aos/trace.py`, rule 22): assembles a task's
+  events into an ordered trajectory and JUDGES the path, not just the outcome —
+  flags orphaned side effects, success-despite-a-denied-action, excessive retries,
+  and poison even when the final status looks fine. `aos trace --task/--goal`.
+  Proven: a failed task that committed a side effect is flagged DANGEROUS
+  ("needs compensation"); a normal task traces clean. 1 eval + 1 test.
 - ✅ Quarantine / dead-letter (`aos/quarantine.py` + `quarantine` table, rule 21):
   a terminally-failed task is captured with an evidence bundle (reason, attempts,
   last output, verifier evidence) instead of thrashing. Replay is EXPLICIT

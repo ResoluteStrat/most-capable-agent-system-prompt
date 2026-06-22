@@ -17,9 +17,8 @@ file is the at-a-glance operator view. Updated by `aos queues --sync`.
   explicit replay (rules 16-21).
 
 ## next
-1. Observability cont. — trajectory tracing (rule 22): record per-task spans
-   (plan/tool/verify/retry/wait/effect) so a whole execution path can be replayed
-   and judged, not just the final outcome.
+1. Reliability cont. — auto-compensate an orphaned side effect the trace judge
+   detects (close the loop: flag → compensate via the saga ledger).
 2. M7 cont. — cross-machine git-worktree lanes per worker for parallel coding.
 3. M5 cont. — real Playwright backend behind `BrowserBackend` (deferred: needs a
    real browser + dep, unverifiable here; the seam is ready for when it isn't).

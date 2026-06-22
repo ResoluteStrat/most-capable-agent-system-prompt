@@ -579,6 +579,32 @@ def case_quarantine_captures_and_replay_recovers():
     return ok, f"captured={bool(captured)} replay_ok={r['ok']} recovered={recovered}"
 
 
+def case_trace_judges_the_path_not_just_outcome():
+    """A normal task traces clean; a task that commits a side effect then fails is
+    flagged DANGEROUS (orphaned effect) by the path judge — outcome alone would
+    only show 'failed', the trajectory shows WHY it's unsafe."""
+    from .. import trace
+    conn, _ = _fresh()
+    # clean path
+    g1 = engine.create_goal(conn, "clean")
+    engine.run(conn, g1)
+    t1 = conn.execute("SELECT id FROM tasks WHERE goal_id=? LIMIT 1", (g1,)).fetchone()["id"]
+    clean_ok = trace.task_trace(conn, t1)["clean"] is True
+    # orphaned side effect: python commits an effect (writes a file), then fails verification
+    g2 = engine.create_goal(conn, "orphan", tasks=[
+        {"title": "commit then fail", "kind": "python",
+         "spec": {"code": "open('did.txt','a').write('x')"},
+         "verification": {"type": "file_contains", "path": "did.txt", "needle": "NEVER"},
+         "max_attempts": 1}])
+    engine.run(conn, g2)
+    t2 = conn.execute("SELECT id FROM tasks WHERE goal_id=? LIMIT 1", (g2,)).fetchone()["id"]
+    tr = trace.task_trace(conn, t2)
+    flagged = (not tr["clean"]) and any("orphaned side effect" in f for f in tr["findings"])
+    has_spans = len(tr["spans"]) >= 3
+    return clean_ok and flagged and has_spans, \
+        f"clean_path_ok={clean_ok} dangerous_flagged={flagged} spans={len(tr['spans'])}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -612,6 +638,7 @@ CASES = {
     "timer_waitpoint_resumes_when_due": case_timer_waitpoint_resumes_when_due,
     "signal_waitpoint_resumes_across_processes": case_signal_waitpoint_resumes_across_processes,
     "quarantine_captures_and_replay_recovers": case_quarantine_captures_and_replay_recovers,
+    "trace_judges_the_path_not_just_outcome": case_trace_judges_the_path_not_just_outcome,
 }
 
 

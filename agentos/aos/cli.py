@@ -21,6 +21,7 @@ Commands:
   web [--port 8787]                           read-only web control plane + live events
   worker [--id W] [--goal ID]                 pull-based worker daemon (run several)
   effects                                     idempotent effect ledger (sagas)
+  trace [--task ID | --goal ID]               trajectory + path judge (rule 22)
   quarantine | replay <task_id>               dead-letter queue: list / explicit replay
   waits | signal <name>                       durable waitpoints: list / deliver a signal
   profiles                                     list behavior profiles + model routing
@@ -371,6 +372,22 @@ def cmd_waits(args):
         print(f"  task={r['task_id']}  {r['kind']}  until/on={cond}  ({r['reason']})")
 
 
+def cmd_trace(args):
+    from . import trace
+    conn = _conn()
+    traces = [trace.task_trace(conn, args.task)] if args.task else \
+        (trace.goal_trace(conn, args.goal) if args.goal else [])
+    if not traces:
+        print("specify --task ID or --goal ID"); return
+    for tr in traces:
+        verdict = "✓ clean path" if tr["clean"] else "⚠ DANGEROUS PATH"
+        print(f"\nTRACE task={tr['task_id']}  [{verdict}]")
+        for s in tr["spans"]:
+            print(f"  {s['seq']:2} {s['ts']}  {s['phase']}")
+        for f in tr["findings"]:
+            print(f"  ⚠ {f}")
+
+
 def cmd_quarantine(args):
     from . import quarantine
     rows = quarantine.listq(_conn())
@@ -472,6 +489,8 @@ def build_parser():
     wb = sub.add_parser("web"); wb.add_argument("--port", type=int, default=8787)
     wb.set_defaults(fn=cmd_web)
     sub.add_parser("effects").set_defaults(fn=cmd_effects)
+    tr = sub.add_parser("trace"); tr.add_argument("--task"); tr.add_argument("--goal")
+    tr.set_defaults(fn=cmd_trace)
     sub.add_parser("quarantine").set_defaults(fn=cmd_quarantine)
     rp = sub.add_parser("replay"); rp.add_argument("task_id"); rp.set_defaults(fn=cmd_replay)
     sg = sub.add_parser("signal"); sg.add_argument("name"); sg.set_defaults(fn=cmd_signal)
