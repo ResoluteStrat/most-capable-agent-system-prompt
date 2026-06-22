@@ -439,6 +439,22 @@ def case_two_workers_no_double_execution():
     return ok, f"done={done}/10 runs={runs} (one-run-per-task) workers={workers_used} split={[results[w]['done'] for w in results]}"
 
 
+def case_fetcher_parses_and_feeds_intel():
+    """The fetcher layer parses an RSS feed into intel items that flow through the
+    relevance scorer — architecture entries promote, the thin-wrapper one does not."""
+    from .. import fetchers, intel
+    from pathlib import Path as _P
+    feed = _P(__file__).resolve().parents[2] / "examples" / "sample_feed.xml"
+    items = fetchers.collect([str(feed)], source="digest")
+    conn, _ = _fresh()
+    summary = intel.ingest(conn, items)
+    d = intel.digest(conn)
+    # 3 items parsed; 2 architecture-bearing → test/promoted, 1 wrapper → ignore
+    ok = (len(items) == 3 and all(i["source"] == "digest" and i["url"] for i in items)
+          and d["counts"]["ignore"] == 1 and summary["promoted_experiments"] == 2)
+    return ok, f"parsed={len(items)} counts={d['counts']} promoted={summary['promoted_experiments']}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -465,6 +481,7 @@ CASES = {
     "intel_ranks_and_promotes": case_intel_ranks_and_promotes,
     "web_snapshot_and_events": case_web_snapshot_and_events,
     "two_workers_no_double_execution": case_two_workers_no_double_execution,
+    "fetcher_parses_and_feeds_intel": case_fetcher_parses_and_feeds_intel,
 }
 
 

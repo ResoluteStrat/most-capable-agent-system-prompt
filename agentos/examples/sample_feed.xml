@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Agent Architecture Digest</title>
+    <item>
+      <title>LangGraph adds durable checkpointing</title>
+      <link>https://example.com/langgraph-checkpoint</link>
+      <pubDate>2026-06-01</pubDate>
+      <description>Graph orchestration gains durable execution, resumable checkpoints, and typed state for long-running workflows with human-in-the-loop approval.</description>
+    </item>
+    <item>
+      <title>Letta ships typed memory blocks</title>
+      <link>https://example.com/letta-memory</link>
+      <pubDate>2026-06-03</pubDate>
+      <description>Memory-first agents with typed retrieval and provenance, replacing ever-growing transcripts.</description>
+    </item>
+    <item>
+      <title>YetAnotherBot launches</title>
+      <link>https://example.com/yab</link>
+      <pubDate>2026-06-05</pubDate>
+      <description>A thin wrapper around a provider API; a chatbot ui-only demo riding the trend with no public architecture.</description>
+    </item>
+  </channel>
+</rss>

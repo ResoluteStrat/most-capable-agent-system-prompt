@@ -191,6 +191,22 @@ def test_web_snapshot_and_event_stream():
     assert web.events_since(conn, evs[-1]["id"]) == []   # since-filter excludes seen
 
 
+def test_fetcher_parses_feed_and_degrades_gracefully():
+    from aos import fetchers
+    rss = ("<rss version='2.0'><channel>"
+           "<item><title>durable checkpoint workflow</title>"
+           "<link>https://x/a</link><description>typed contracts and eval loops</description></item>"
+           "</channel></rss>")
+    items = fetchers.parse_feed(rss)
+    assert len(items) == 1 and items[0]["url"] == "https://x/a" and "durable" in items[0]["claim"]
+    # JSON feeds also parse
+    assert len(fetchers.parse_any('[{"claim":"x","url":"u"}]')) == 1
+    # malformed input degrades to [] instead of crashing
+    assert fetchers.parse_feed("not xml at all") == []
+    # an unreachable URL returns [] (network-optional), no exception
+    assert fetchers.HttpFetcher("http://127.0.0.1:9/none", timeout=1).fetch() == []
+
+
 def test_intel_ranks_and_promotes():
     from aos import intel
     conn = _fresh()

@@ -105,7 +105,11 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   collaborate with **zero double-execution**. Proven by an eval + a test (two
   workers → exactly one run per task) and a live two-process CLI demo. `worker_id`
   threaded through tick/run; `loop` is the daemon form with idle backoff.
-- ⏳ Next: a swappable intel fetcher layer; cross-machine worktree lanes.
+- ✅ Swappable fetcher layer (`aos/fetchers.py`, `aos intel --fetch`): RSS/Atom/
+  JSON → normalized intel items via stdlib xml.etree. `FileFetcher` (offline,
+  deterministic — used by the eval/test) and `HttpFetcher` (urllib, NETWORK-
+  OPTIONAL — returns [] on any failure, never crashes the loop). 1 eval + a test.
+- ⏳ Next: cross-machine git-worktree lanes per worker.
 
 ## M7 details — External-intelligence loop + multi-machine
 Scheduled digest of open-source agent architecture → ranked experiments → evals.

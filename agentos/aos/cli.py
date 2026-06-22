@@ -17,7 +17,7 @@ Commands:
   config [--set k=v | --reset k|all]          show / tune the safe config surface
   approvals [--approve ID|--deny ID]          approval queue
   recurring                                   proactive sweep → propose goals
-  intel [--add items.json]                    external-intelligence loop: ingest/rank
+  intel [--add f.json | --fetch url|feed.xml]  external-intelligence loop: fetch/ingest/rank
   web [--port 8787]                           read-only web control plane + live events
   worker [--id W] [--goal ID]                 pull-based worker daemon (run several)
   profiles                                     list behavior profiles + model routing
@@ -172,6 +172,12 @@ def cmd_intel(args):
 
     from . import intel
     conn = _conn()
+    if args.fetch:
+        from . import fetchers
+        items = fetchers.collect([args.fetch], source=args.source)
+        print(f"fetched {len(items)} item(s) from {args.fetch}")
+        print(json.dumps(intel.ingest(conn, items), indent=2))
+        return
     if args.add:
         items = json.loads(Path(args.add).read_text())
         summary = intel.ingest(conn, items)
@@ -404,7 +410,8 @@ def build_parser():
     a.set_defaults(fn=cmd_approvals)
     rc = sub.add_parser("recurring"); rc.add_argument("--tune", action="store_true")
     rc.set_defaults(fn=cmd_recurring)
-    it = sub.add_parser("intel"); it.add_argument("--add"); it.set_defaults(fn=cmd_intel)
+    it = sub.add_parser("intel"); it.add_argument("--add"); it.add_argument("--fetch")
+    it.add_argument("--source"); it.set_defaults(fn=cmd_intel)
     wb = sub.add_parser("web"); wb.add_argument("--port", type=int, default=8787)
     wb.set_defaults(fn=cmd_web)
     wk = sub.add_parser("worker"); wk.add_argument("--id", default="worker-1")
