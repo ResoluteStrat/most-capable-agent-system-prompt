@@ -1,0 +1,34 @@
+[
+  {
+    "source": "LangGraph",
+    "url": "https://github.com/langchain-ai/langgraph",
+    "date": "2026-03-01",
+    "category": "orchestration",
+    "claim": "Graph-based orchestration with durable execution, checkpointing, and human-in-the-loop state inspection for long-running workflows.",
+    "suggested_experiment": "Compare our harness checkpoint/resume to a graph-checkpoint model on the coding harness."
+  },
+  {
+    "source": "Temporal",
+    "url": "https://github.com/temporalio/temporal",
+    "date": "2026-02-15",
+    "category": "durable-execution",
+    "claim": "Durable execution with retries, timers, checkpoints, and workflow versioning for fault-tolerant orchestration.",
+    "suggested_experiment": "Prototype a durable-wait primitive for approval pauses behind the engine."
+  },
+  {
+    "source": "Letta",
+    "url": "https://github.com/letta-ai/letta",
+    "date": "2026-01-20",
+    "category": "memory",
+    "claim": "Memory-first stateful agents with explicit memory blocks and typed retrieval, not ever-growing transcripts.",
+    "suggested_experiment": "Test typed memory blocks vs our layered memory on long-horizon recall."
+  },
+  {
+    "source": "ShinyChatThing",
+    "url": "https://example.com/shiny",
+    "date": "2026-03-10",
+    "category": "product",
+    "claim": "A thin wrapper around a provider API; a polished chatbot UI-only demo riding the trend, no public architecture.",
+    "suggested_experiment": ""
+  }
+]

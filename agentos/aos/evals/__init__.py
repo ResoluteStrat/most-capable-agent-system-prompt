@@ -361,6 +361,27 @@ def case_recurring_sweep_proposes_and_improves():
     return ok, f"proposals={len(d['proposals'])} improve={d['improve']}"
 
 
+def case_intel_ranks_and_promotes():
+    """Architecture-bearing intel outranks thin-wrapper noise and is promoted to an
+    experiment candidate; noise is not."""
+    from .. import intel
+    conn, _ = _fresh()
+    items = [
+        {"source": "Temporal", "url": "u1", "category": "durable-execution",
+         "claim": "durable execution with checkpoint, retries, workflow versioning and typed contracts"},
+        {"source": "ShinyBot", "url": "u2", "category": "product",
+         "claim": "a thin wrapper around a provider API, chatbot ui-only demo riding the trend"},
+    ]
+    summary = intel.ingest(conn, items)
+    d = intel.digest(conn)
+    strong, weak = intel.score(items[0]), intel.score(items[1])
+    top = d["ranked"][0]
+    promoted = summary["promoted_experiments"]
+    ok = (strong > weak and top["source"] == "Temporal" and top["verdict"] == "test"
+          and weak == 0 and promoted == 1)
+    return ok, f"strong={strong} weak={weak} top={top['source']} promoted={promoted}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -384,6 +405,7 @@ CASES = {
     "ask_router_classifies": case_ask_router_classifies,
     "rollup_altitudes": case_rollup_altitudes,
     "recurring_sweep": case_recurring_sweep_proposes_and_improves,
+    "intel_ranks_and_promotes": case_intel_ranks_and_promotes,
 }
 
 

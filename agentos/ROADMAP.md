@@ -84,7 +84,15 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   system proposes its own next work instead of going idle. 1 eval case + a test.
   (Fixed a meta-recursion: improve now scores against a core suite that excludes
   the sweep case.)
-- ⏳ Next: external-intelligence digest loop; hub-worker scale-out.
+- ✅ External-intelligence loop (`aos intel`, `aos/intel.py`): ingest structured
+  items into the dedicated `external` memory layer (deduped by URL), score by
+  ARCHITECTURAL relevance (reward durable execution / checkpoint / typed
+  contracts / memory / routing / sandbox / eval / approvals / traceability;
+  penalize thin-wrapper / chat-shell / UI-only / trend noise), and PROMOTE
+  high-signal items into experiment candidates — the news→improvement pipeline.
+  The recurring sweep reports queued intel experiments. 1 eval + a test.
+  `examples/intel_sample.json` is a runnable starter set.
+- ⏳ Next: a swappable fetcher layer feeding `intel.ingest`; hub-worker scale-out.
 
 ## M7 details — External-intelligence loop + multi-machine
 Scheduled digest of open-source agent architecture → ranked experiments → evals.

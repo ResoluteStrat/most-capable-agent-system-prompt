@@ -155,6 +155,23 @@ def test_coding_harness_resumes_from_failed_phase():
     assert r2["phases"]["plan"] == "done" and r2["phases"]["change"] == "done"
 
 
+def test_intel_ranks_and_promotes():
+    from aos import intel
+    conn = _fresh()
+    items = [
+        {"source": "Temporal", "url": "u1", "category": "durable-execution",
+         "claim": "durable execution with checkpoint, retries, typed contracts, workflow versioning"},
+        {"source": "ShinyBot", "url": "u2", "category": "product",
+         "claim": "thin wrapper around a provider API, chatbot ui-only demo riding the trend"},
+    ]
+    summary = intel.ingest(conn, items)
+    assert intel.score(items[0]) > intel.score(items[1])
+    assert intel.score(items[1]) == 0           # noise penalized to zero
+    assert summary["promoted_experiments"] == 1
+    d = intel.digest(conn)
+    assert d["ranked"][0]["source"] == "Temporal" and d["counts"]["ignore"] == 1
+
+
 def test_recurring_sweep_proposes_and_improves():
     from aos import sweep
     conn = _fresh()

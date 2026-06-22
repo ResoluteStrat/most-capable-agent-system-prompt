@@ -29,10 +29,16 @@ def run(conn, tune=False) -> dict:
     improved = improve.cycle(conn)               # failure → regression eval
     tuned = improve.tune_config(conn) if tune else None
 
+    # external-intelligence experiments queued from ingested news (M7).
+    intel_experiments = conn.execute(
+        "SELECT COUNT(*) c FROM memory WHERE mtype='semantic' AND mkey LIKE 'intel.experiment:%'"
+    ).fetchone()["c"]
+
     digest = {"proposals": proposals,
               "pending_approvals": port["pending_approvals"],
               "improve": improved.get("action"),
-              "tune": (tuned or {}).get("action") if tune else "skipped"}
+              "tune": (tuned or {}).get("action") if tune else "skipped",
+              "intel_experiments": intel_experiments}
     emit(conn, "recurring.sweep", proposals=len(proposals),
-         improve=digest["improve"], tune=digest["tune"])
+         improve=digest["improve"], tune=digest["tune"], intel_experiments=intel_experiments)
     return digest

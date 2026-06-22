@@ -17,6 +17,7 @@ Commands:
   config [--set k=v | --reset k|all]          show / tune the safe config surface
   approvals [--approve ID|--deny ID]          approval queue
   recurring                                   proactive sweep → propose goals
+  intel [--add items.json]                    external-intelligence loop: ingest/rank
   profiles                                     list behavior profiles + model routing
   harness coding [--spec f.json] [--goal ID]   run the coding & delivery state machine
                  [--no-resume]                 (plan→change→test→review→gate; resumable)
@@ -162,6 +163,30 @@ def cmd_approvals(args):
     print("\napprove: python -m aos approvals --approve <id>   deny: --deny <id>")
 
 
+def cmd_intel(args):
+    """External-intelligence loop: ingest structured items, rank, promote
+    high-signal ones to experiment candidates the sweep can act on."""
+    from pathlib import Path
+
+    from . import intel
+    conn = _conn()
+    if args.add:
+        items = json.loads(Path(args.add).read_text())
+        summary = intel.ingest(conn, items)
+        print(json.dumps(summary, indent=2))
+        return
+    d = intel.digest(conn)
+    print(f"INTEL DIGEST — {d['total']} item(s)  counts={d['counts']}")
+    print("\nranked (relevance ↓):")
+    for i in d["ranked"]:
+        print(f"  [{i.get('verdict','?'):6} r={i.get('relevance',0)}] "
+              f"{i.get('claim','')[:80]}  ({i.get('source','')})")
+    if d["experiments"]:
+        print("\nexperiment candidates (news → improvement):")
+        for e in d["experiments"]:
+            print(f"  - {e.split(':',1)[1]}")
+
+
 def cmd_recurring(args):
     """Self-driving sweep: portfolio scan → proactive proposals + failure→eval
     (+ optional config tuning behind the eval gate). The momentum loop."""
@@ -174,7 +199,8 @@ def cmd_recurring(args):
     else:
         print("sweep clean: no stalled or failed work detected.")
     print(f"\nimprove: {d['improve']}   tune: {d['tune']}   "
-          f"pending approvals: {d['pending_approvals']}")
+          f"pending approvals: {d['pending_approvals']}   "
+          f"intel experiments queued: {d.get('intel_experiments', 0)}")
 
 
 def cmd_profiles(args):
@@ -365,6 +391,7 @@ def build_parser():
     a.set_defaults(fn=cmd_approvals)
     rc = sub.add_parser("recurring"); rc.add_argument("--tune", action="store_true")
     rc.set_defaults(fn=cmd_recurring)
+    it = sub.add_parser("intel"); it.add_argument("--add"); it.set_defaults(fn=cmd_intel)
     sub.add_parser("profiles").set_defaults(fn=cmd_profiles)
     hp = sub.add_parser("harness"); hp.add_argument("name", choices=["coding", "report", "browser"])
     hp.add_argument("--spec"); hp.add_argument("--goal"); hp.add_argument("--workspace")
