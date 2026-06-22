@@ -21,6 +21,7 @@ Commands:
   web [--port 8787]                           read-only web control plane + live events
   worker [--id W] [--goal ID]                 pull-based worker daemon (run several)
   effects                                     idempotent effect ledger (sagas)
+  waits | signal <name>                       durable waitpoints: list / deliver a signal
   profiles                                     list behavior profiles + model routing
   harness coding [--spec f.json] [--goal ID]   run the coding & delivery state machine
                  [--no-resume]                 (plan→change→test→review→gate; resumable)
@@ -351,6 +352,24 @@ def cmd_worker(args):
     print(json.dumps(out, indent=2))
 
 
+def cmd_signal(args):
+    from . import waitpoints
+    conn = _conn()
+    n = waitpoints.deliver_signal(conn, args.name)
+    print(f"signal '{args.name}' delivered → {n} waitpoint(s) now ready. run: python -m aos run")
+
+
+def cmd_waits(args):
+    from . import waitpoints
+    rows = waitpoints.pending(_conn())
+    if not rows:
+        print("no pending waitpoints.")
+        return
+    for r in rows:
+        cond = r["wake_at"] or r["signal"] or "approval"
+        print(f"  task={r['task_id']}  {r['kind']}  until/on={cond}  ({r['reason']})")
+
+
 def cmd_effects(args):
     from . import effects
     rows = effects.ledger(_conn())
@@ -427,6 +446,8 @@ def build_parser():
     wb = sub.add_parser("web"); wb.add_argument("--port", type=int, default=8787)
     wb.set_defaults(fn=cmd_web)
     sub.add_parser("effects").set_defaults(fn=cmd_effects)
+    sg = sub.add_parser("signal"); sg.add_argument("name"); sg.set_defaults(fn=cmd_signal)
+    sub.add_parser("waits").set_defaults(fn=cmd_waits)
     wk = sub.add_parser("worker"); wk.add_argument("--id", default="worker-1")
     wk.add_argument("--goal"); wk.add_argument("--max-idle", type=int, default=3)
     wk.set_defaults(fn=cmd_worker)

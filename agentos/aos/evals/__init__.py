@@ -517,6 +517,45 @@ def case_saga_rolls_back_on_failure():
     return rolled_back, f"saga={out['status']} crm={state['crm']} billing={state['billing']} statuses={statuses}"
 
 
+def case_timer_waitpoint_resumes_when_due():
+    """A timer wait whose wake_at is in the past resolves immediately; one in the
+    future stays blocked (waiting) and does not complete."""
+    from .. import waitpoints
+    conn, _ = _fresh()
+    past = engine.create_goal(conn, "timer past", tasks=[
+        {"title": "wait past", "kind": "wait",
+         "spec": {"wait": "timer", "until": "2000-01-01T00:00:00Z"}, "verification": {"type": "always"}}])
+    engine.run(conn, past)
+    future = engine.create_goal(conn, "timer future", tasks=[
+        {"title": "wait future", "kind": "wait",
+         "spec": {"wait": "timer", "until": "2999-01-01T00:00:00Z"}, "verification": {"type": "always"}}])
+    engine.run(conn, future)
+    p = conn.execute("SELECT status FROM tasks WHERE goal_id=?", (past,)).fetchone()["status"]
+    f = conn.execute("SELECT status FROM tasks WHERE goal_id=?", (future,)).fetchone()["status"]
+    return p == "done" and f == "blocked", f"past={p} future={f}"
+
+
+def case_signal_waitpoint_resumes_across_processes():
+    """A signal wait blocks; after the signal is delivered, a run on a FRESH
+    connection (a different process) resumes it to done — durable, not in-memory."""
+    from .. import waitpoints
+    from ..db import connect
+    conn, tmp = _fresh()
+    db = str(tmp / "agentos.db")
+    gid = engine.create_goal(conn, "signal wait", tasks=[
+        {"title": "await go", "kind": "wait",
+         "spec": {"wait": "signal", "signal": "go"}, "verification": {"type": "always"}}])
+    engine.run(conn, gid)
+    blocked = conn.execute("SELECT status FROM tasks WHERE goal_id=?", (gid,)).fetchone()["status"]
+    waitpoints.deliver_signal(conn, "go")
+    conn.close()
+    fresh = connect(db)                       # simulate a different process
+    engine.run(fresh, gid)
+    resumed = fresh.execute("SELECT status FROM tasks WHERE goal_id=?", (gid,)).fetchone()["status"]
+    fresh.close()
+    return blocked == "blocked" and resumed == "done", f"before={blocked} after_signal(fresh conn)={resumed}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -547,6 +586,8 @@ CASES = {
     "effect_idempotency": case_effect_idempotency,
     "saga_rolls_back_on_failure": case_saga_rolls_back_on_failure,
     "retried_side_effect_applies_once": case_retried_side_effect_applies_once,
+    "timer_waitpoint_resumes_when_due": case_timer_waitpoint_resumes_when_due,
+    "signal_waitpoint_resumes_across_processes": case_signal_waitpoint_resumes_across_processes,
 }
 
 

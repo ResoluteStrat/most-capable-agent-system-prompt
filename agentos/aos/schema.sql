@@ -103,6 +103,24 @@ CREATE TABLE IF NOT EXISTS harness_runs (
 -- Idempotent effect ledger (reliability rules 16-17): every side-effecting action
 -- carries an idempotency key + a recorded compensation, so retries don't double-
 -- apply and partial multi-step failures can roll back (sagas).
+-- Durable waitpoints (reliability rules 18-19): a run can pause for an approval,
+-- a scheduled time (timer), or an external signal (webhook), with its exact state
+-- on disk so a fresh process resumes from the waitpoint instead of from zero.
+CREATE TABLE IF NOT EXISTS waitpoints (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts          TEXT NOT NULL,
+    task_id     TEXT NOT NULL,
+    goal_id     TEXT,
+    kind        TEXT NOT NULL,                     -- timer/signal/approval
+    status      TEXT NOT NULL DEFAULT 'pending',   -- pending/resolved
+    wake_at     TEXT NOT NULL DEFAULT '',          -- timer: resume when now >= wake_at
+    signal      TEXT NOT NULL DEFAULT '',          -- signal: resume when delivered
+    delivered   INTEGER NOT NULL DEFAULT 0,
+    reason      TEXT NOT NULL DEFAULT '',
+    updated_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_waitpoints_task ON waitpoints(task_id);
+
 CREATE TABLE IF NOT EXISTS effects (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     ts              TEXT NOT NULL,

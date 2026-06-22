@@ -16,8 +16,8 @@ file is the at-a-glance operator view. Updated by `aos queues --sync`.
 
 ## next
 1. M7 cont. — cross-machine git-worktree lanes per worker for parallel coding.
-2. Reliability cont. — durable waitpoints: persist a paused run's exact state for
-   approval/webhook/timer resumption (rules 18-19) beyond the current approval gate.
+2. Reliability cont. — quarantine/dead-letter queue (rule 21): tasks that fail
+   repeatedly move to a quarantine state with explicit, evidence-rich replay.
 3. M5 cont. — real Playwright backend behind `BrowserBackend` (deferred: needs a
    real browser + dep, unverifiable here; the seam is ready for when it isn't).
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
-from . import autonomy, effects, executors, memory, profiles, projectpack, verify
+from . import autonomy, effects, executors, memory, profiles, projectpack, verify, waitpoints
 from .adapters import model as model_adapter
 from .db import emit, init_db, jdumps, jloads, now
 
@@ -121,14 +121,63 @@ def _claim(conn, task_id, worker_id=WORKER_ID) -> bool:
     return cur.rowcount == 1
 
 
+def resume_ready_waits(conn, goal_id=None):
+    """Flip blocked `wait` tasks whose waitpoint is now satisfied back to pending,
+    so a later tick (even in a fresh process) resumes them from their waitpoint."""
+    q = "SELECT * FROM tasks WHERE status='blocked' AND kind='wait'"
+    args = []
+    if goal_id:
+        q += " AND goal_id=?"
+        args.append(goal_id)
+    for t in conn.execute(q, args).fetchall():
+        wp = waitpoints.for_task(conn, t["id"])
+        if wp and waitpoints.ready(conn, wp):
+            conn.execute("UPDATE tasks SET status='pending', updated_at=? WHERE id=?",
+                         (now(), t["id"]))
+            conn.commit()
+            emit(conn, "task.wait_ready", goal_id=t["goal_id"], task_id=t["id"])
+
+
+def _handle_wait(conn, t, spec) -> dict:
+    """A `wait` task: create a waitpoint and block, or resolve it and complete."""
+    tid = t["id"]
+    wp = waitpoints.for_task(conn, tid)
+    if wp is None:
+        kind = spec.get("wait", "signal")
+        wp_id = waitpoints.create(conn, tid, t["goal_id"], kind,
+                                  wake_at=spec.get("until", ""), signal=spec.get("signal", ""),
+                                  reason=spec.get("reason", f"{kind} wait"))
+        wp = conn.execute("SELECT * FROM waitpoints WHERE id=?", (wp_id,)).fetchone()
+    if waitpoints.ready(conn, wp):
+        waitpoints.resolve(conn, wp["id"])
+        conn.execute("UPDATE tasks SET status='done', evidence=?, updated_at=? WHERE id=?",
+                     (jdumps({"waited": wp["kind"]}), now(), tid))
+        conn.commit()
+        emit(conn, "task.resumed", goal_id=t["goal_id"], task_id=tid, wp_kind=wp["kind"])
+        memory.record(conn, "episodic", f"task.resumed:{tid}", f"{t['title']} resumed from {wp['kind']} wait",
+                      provenance=f"task:{tid}", confidence=0.9)
+        _update_goal_status(conn, t["goal_id"])
+        projectpack.render(conn, t["goal_id"])
+        return {"task_id": tid, "title": t["title"], "result": "done", "verified": True}
+    conn.execute("UPDATE tasks SET status='blocked', updated_at=? WHERE id=?", (now(), tid))
+    conn.commit()
+    emit(conn, "task.waiting", goal_id=t["goal_id"], task_id=tid, wp_kind=wp["kind"])
+    projectpack.render(conn, t["goal_id"])
+    return {"task_id": tid, "title": t["title"], "result": "waiting", "wp_kind": wp["kind"]}
+
+
 def tick(conn, goal_id=None, worker_id=WORKER_ID) -> dict | None:
     """Advance the loop by one task. Returns an outcome dict, or None if idle."""
+    resume_ready_waits(conn, goal_id)
     t = _eligible_task(conn, goal_id)
     if not t:
         return None
     tid = t["id"]
     if not _claim(conn, tid, worker_id):
         return {"task_id": tid, "result": "claim-lost"}
+
+    if t["kind"] == "wait":
+        return _handle_wait(conn, t, jloads(t["spec"], {}))
 
     # route: pick a behavior profile + a model tier for this task (M2 seam).
     tags = jloads(t["skill_tags"], [])

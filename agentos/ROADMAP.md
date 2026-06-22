@@ -111,7 +111,7 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   OPTIONAL — returns [] on any failure, never crashes the loop). 1 eval + a test.
 - ⏳ Next: cross-machine git-worktree lanes per worker.
 
-## Reliability hardening — idempotent effects + sagas  ✅
+## Reliability hardening — idempotent effects + sagas + durable waits  ✅
 - `aos/effects.py` + `effects` table (rules 16-17): every side-effecting action
   goes through the ledger with an **idempotency key** so a retry replays the
   recorded result instead of re-applying the effect; every forward action records
@@ -123,6 +123,13 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   committed result instead of re-applying the side effect. Proven through the real
   engine: a python task retried twice applies its effect exactly once (1 apply,
   1 replay). 1 eval + 1 test.
+- ✅ Durable waitpoints (`aos/waitpoints.py` + `waitpoints` table, rules 18-19):
+  a `wait` task pauses on a **timer** (resume when now ≥ wake_at), a **signal**
+  (resume when delivered, e.g. a webhook), or **approval** — with exact state on
+  disk, so a FRESH process resumes from the waitpoint, not from zero. The engine
+  flips ready waits back to runnable at tick start. `aos signal <name>` / `aos
+  waits`. Proven across separate processes (signal delivered, fresh-connection run
+  resumes to done). 2 evals + 2 tests.
 
 ## M7 details — External-intelligence loop + multi-machine
 Scheduled digest of open-source agent architecture → ranked experiments → evals.

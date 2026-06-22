@@ -180,6 +180,32 @@ def test_two_workers_no_double_execution():
     assert done == 10 and runs == 10        # exactly one run per task; no double execution
 
 
+def test_timer_waitpoint_blocks_then_resumes():
+    conn = _fresh()
+    g = engine.create_goal(conn, "t", tasks=[
+        {"title": "w", "kind": "wait", "spec": {"wait": "timer", "until": "2999-01-01T00:00:00Z"},
+         "verification": {"type": "always"}}])
+    engine.run(conn, g)
+    assert conn.execute("SELECT status FROM tasks WHERE goal_id=?", (g,)).fetchone()["status"] == "blocked"
+
+
+def test_signal_waitpoint_resumes_on_fresh_connection():
+    import tempfile
+    from aos.db import connect, init_db
+    db = str(Path(tempfile.mkdtemp()) / "agentos.db")
+    c = init_db(db)
+    g = engine.create_goal(c, "s", tasks=[
+        {"title": "w", "kind": "wait", "spec": {"wait": "signal", "signal": "go"},
+         "verification": {"type": "always"}}])
+    engine.run(c, g)
+    assert c.execute("SELECT status FROM tasks WHERE goal_id=?", (g,)).fetchone()["status"] == "blocked"
+    from aos import waitpoints
+    waitpoints.deliver_signal(c, "go"); c.close()
+    c2 = connect(db)                              # fresh process
+    engine.run(c2, g)
+    assert c2.execute("SELECT status FROM tasks WHERE goal_id=?", (g,)).fetchone()["status"] == "done"
+
+
 def test_engine_retry_does_not_double_apply_side_effect():
     conn = _fresh()
     gid = engine.create_goal(conn, "once", tasks=[
