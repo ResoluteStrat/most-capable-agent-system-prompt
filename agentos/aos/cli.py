@@ -19,6 +19,7 @@ Commands:
   recurring                                   proactive sweep → propose goals
   intel [--add items.json]                    external-intelligence loop: ingest/rank
   web [--port 8787]                           read-only web control plane + live events
+  worker [--id W] [--goal ID]                 pull-based worker daemon (run several)
   profiles                                     list behavior profiles + model routing
   harness coding [--spec f.json] [--goal ID]   run the coding & delivery state machine
                  [--no-resume]                 (plan→change→test→review→gate; resumable)
@@ -337,6 +338,12 @@ def cmd_ask(args):
         print("\n" + json.dumps(engine.metrics(conn)))
 
 
+def cmd_worker(args):
+    from . import worker
+    out = worker.loop(args.id, poll=0.2, max_idle=args.max_idle, goal_id=args.goal)
+    print(json.dumps(out, indent=2))
+
+
 def cmd_web(args):
     from . import web
     web.serve(port=args.port)
@@ -400,6 +407,9 @@ def build_parser():
     it = sub.add_parser("intel"); it.add_argument("--add"); it.set_defaults(fn=cmd_intel)
     wb = sub.add_parser("web"); wb.add_argument("--port", type=int, default=8787)
     wb.set_defaults(fn=cmd_web)
+    wk = sub.add_parser("worker"); wk.add_argument("--id", default="worker-1")
+    wk.add_argument("--goal"); wk.add_argument("--max-idle", type=int, default=3)
+    wk.set_defaults(fn=cmd_worker)
     sub.add_parser("profiles").set_defaults(fn=cmd_profiles)
     hp = sub.add_parser("harness"); hp.add_argument("name", choices=["coding", "report", "browser"])
     hp.add_argument("--spec"); hp.add_argument("--goal"); hp.add_argument("--workspace")

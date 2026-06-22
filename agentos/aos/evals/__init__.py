@@ -397,6 +397,48 @@ def case_web_snapshot_and_events():
     return ok, f"goals={snap['portfolio']['goals']} events={len(evs)} since_filter_ok={since_filter}"
 
 
+def case_two_workers_no_double_execution():
+    """Two concurrent workers drain one task graph: every task runs exactly once
+    (atomic claim), work is split across both, and the goal completes."""
+    import threading
+
+    from .. import worker
+    from ..db import DB_PATH, connect, init_db
+    conn, tmp = _fresh()
+    db = str(tmp / "agentos.db")              # real file so threads share it
+    init_db(db)
+    c0 = connect(db)
+    tasks = [{"title": f"t{i}", "kind": "noop", "spec": {"note": str(i)},
+              "verification": {"type": "always"}, "max_attempts": 1} for i in range(10)]
+    gid = engine.create_goal(c0, "parallel", tasks=tasks)
+    c0.close()
+
+    results = {}
+
+    def run_worker(wid):
+        c = connect(db)
+        results[wid] = worker.run_until_idle(c, wid, gid)
+        c.close()
+
+    threads = [threading.Thread(target=run_worker, args=(f"w{i}",)) for i in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    c = connect(db)
+    done = c.execute("SELECT COUNT(*) c FROM tasks WHERE goal_id=? AND status='done'", (gid,)).fetchone()["c"]
+    runs = c.execute("SELECT COUNT(*) c FROM runs r JOIN tasks t ON r.task_id=t.id WHERE t.goal_id=?",
+                     (gid,)).fetchone()["c"]
+    workers_used = c.execute("SELECT COUNT(DISTINCT worker) c FROM tasks WHERE goal_id=?", (gid,)).fetchone()["c"]
+    c.close()
+    # Deterministic safety invariant: exactly one run per task → NO double execution,
+    # no matter how the race resolved. (How the work splits across workers is timing-
+    # dependent, so it is reported but not asserted — that keeps the case stable.)
+    ok = done == 10 and runs == 10
+    return ok, f"done={done}/10 runs={runs} (one-run-per-task) workers={workers_used} split={[results[w]['done'] for w in results]}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -422,6 +464,7 @@ CASES = {
     "recurring_sweep": case_recurring_sweep_proposes_and_improves,
     "intel_ranks_and_promotes": case_intel_ranks_and_promotes,
     "web_snapshot_and_events": case_web_snapshot_and_events,
+    "two_workers_no_double_execution": case_two_workers_no_double_execution,
 }
 
 

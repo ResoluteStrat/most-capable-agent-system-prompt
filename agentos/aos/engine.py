@@ -106,22 +106,24 @@ def _eligible_task(conn, goal_id=None):
     return None
 
 
-def _claim(conn, task_id) -> bool:
-    """Atomic pull-based claim: only one worker can move pending->claimed."""
+def _claim(conn, task_id, worker_id=WORKER_ID) -> bool:
+    """Atomic pull-based claim: only one worker can move pending->claimed. This
+    single UPDATE…WHERE status='pending' is what makes multiple workers (threads
+    or machines) safe on one task graph — exactly one gets rowcount==1."""
     cur = conn.execute(
         "UPDATE tasks SET status='claimed', worker=?, updated_at=? "
-        "WHERE id=? AND status='pending'", (WORKER_ID, now(), task_id))
+        "WHERE id=? AND status='pending'", (worker_id, now(), task_id))
     conn.commit()
     return cur.rowcount == 1
 
 
-def tick(conn, goal_id=None) -> dict | None:
+def tick(conn, goal_id=None, worker_id=WORKER_ID) -> dict | None:
     """Advance the loop by one task. Returns an outcome dict, or None if idle."""
     t = _eligible_task(conn, goal_id)
     if not t:
         return None
     tid = t["id"]
-    if not _claim(conn, tid):
+    if not _claim(conn, tid, worker_id):
         return {"task_id": tid, "result": "claim-lost"}
 
     # route: pick a behavior profile + a model tier for this task (M2 seam).
@@ -237,10 +239,10 @@ def _update_goal_status(conn, goal_id):
         emit(conn, f"goal.{status}", goal_id=goal_id)
 
 
-def run(conn, goal_id=None, max_ticks=100) -> list[dict]:
+def run(conn, goal_id=None, max_ticks=100, worker_id=WORKER_ID) -> list[dict]:
     outcomes = []
     for _ in range(max_ticks):
-        out = tick(conn, goal_id)
+        out = tick(conn, goal_id, worker_id)
         if out is None:
             break
         outcomes.append(out)

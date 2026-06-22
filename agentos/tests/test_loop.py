@@ -155,6 +155,31 @@ def test_coding_harness_resumes_from_failed_phase():
     assert r2["phases"]["plan"] == "done" and r2["phases"]["change"] == "done"
 
 
+def test_two_workers_no_double_execution():
+    import tempfile
+    import threading
+    from aos import worker
+    from aos.db import connect, init_db
+    db = str(Path(tempfile.mkdtemp()) / "agentos.db")
+    init_db(db)
+    c0 = connect(db)
+    tasks = [{"title": f"t{i}", "kind": "noop", "spec": {},
+              "verification": {"type": "always"}, "max_attempts": 1} for i in range(10)]
+    gid = engine.create_goal(c0, "par", tasks=tasks); c0.close()
+
+    def w(wid):
+        c = connect(db); worker.run_until_idle(c, wid, gid); c.close()
+    ts = [threading.Thread(target=w, args=(f"w{i}",)) for i in range(2)]
+    [t.start() for t in ts]; [t.join() for t in ts]
+
+    c = connect(db)
+    done = c.execute("SELECT COUNT(*) c FROM tasks WHERE goal_id=? AND status='done'", (gid,)).fetchone()["c"]
+    runs = c.execute("SELECT COUNT(*) c FROM runs r JOIN tasks t ON r.task_id=t.id WHERE t.goal_id=?",
+                     (gid,)).fetchone()["c"]
+    c.close()
+    assert done == 10 and runs == 10        # exactly one run per task; no double execution
+
+
 def test_web_snapshot_and_event_stream():
     from aos import web
     conn = _fresh()

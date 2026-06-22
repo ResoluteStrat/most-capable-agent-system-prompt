@@ -5,19 +5,20 @@ These are the live human-facing momentum queues. The DB mirrors task state; this
 file is the at-a-glance operator view. Updated by `aos queues --sync`.
 
 ## now
-- M1–M7 done and verified (`aos selftest`; `aos eval` 24/24 timed + repeat-run
-  stable; 20/20 tests). Full surface: closed loop · profiles/routing/trust/
+- M1–M7 done and verified (`aos selftest`; `aos eval` 25/25 timed + repeat-run
+  stable; 21/21 tests). Full surface: closed loop · profiles/routing/trust/
   approvals · eval depth + safe self-improvement · 3 resumable harnesses ·
   browser seam + skeptical QA · `aos ask` router · `aos rollup` altitude ·
   self-driving `aos recurring` · `aos intel` external-intelligence · `aos web`
-  read-only control plane with live events.
+  read-only control plane · `aos worker` multi-worker scale-out (zero
+  double-execution, proven across threads AND processes).
 
 ## next
-1. M7 cont. — hub-worker scale-out: a second worker on the same task graph
-   (atomic claim already supports it) + a `--worker` loop daemon.
-2. M5 cont. — real Playwright backend behind `BrowserBackend`; session/auth reuse.
-3. M7 cont. — a swappable fetcher layer (RSS/changelog/release) feeding
-   `intel.ingest`.
+1. M5 cont. — real Playwright backend behind `BrowserBackend`; session/auth reuse.
+2. M7 cont. — a swappable intel fetcher layer (RSS/changelog/release) feeding
+   `intel.ingest`; cross-machine git-worktree lanes per worker.
+3. Hardening — a top-level `agentos/DESIGN.md` mapping each subsystem to the
+   prompt's layers (A–L) for reviewer legibility.
 
 ## blocked
 - (none) — single-machine, stdlib build has no external blockers right now.

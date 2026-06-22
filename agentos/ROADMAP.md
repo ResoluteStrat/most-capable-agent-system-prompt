@@ -99,6 +99,14 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   `examples/intel_sample.json` is a runnable starter set.
 - ⏳ Next: a swappable fetcher layer feeding `intel.ingest`; hub-worker scale-out.
 
+- ✅ Hub-worker scale-out (`aos worker`, `aos/worker.py`): pull-based workers on
+  one shared task graph. The engine's atomic claim (UPDATE…WHERE status='pending')
+  makes many workers — threads or separate processes/machines on the same DB —
+  collaborate with **zero double-execution**. Proven by an eval + a test (two
+  workers → exactly one run per task) and a live two-process CLI demo. `worker_id`
+  threaded through tick/run; `loop` is the daemon form with idle backoff.
+- ⏳ Next: a swappable intel fetcher layer; cross-machine worktree lanes.
+
 ## M7 details — External-intelligence loop + multi-machine
 Scheduled digest of open-source agent architecture → ranked experiments → evals.
 Hub-worker scale-out: multiple workers, then multiple machines on one task graph
