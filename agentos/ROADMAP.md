@@ -64,9 +64,15 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   browser flow is out of scope (browser state isn't durable — flows run in one
   invocation; deterministic re-run is the recovery model).
 
-## M6 — Human interface surfaces
-Universal ask surface + altitude control (task → project → portfolio). CLI first,
-then a thin web control plane reading the same state. Live event stream.
+## M6 — Human interface surfaces  ◑ (universal ask shipped)
+- ✅ Universal `aos ask "<intent>"` surface — a deterministic, transparent intent
+  router (scored keyword signals, word-boundary matching, no LLM) that infers
+  answer / execute / monitor / harness:{coding,report,browser}, shows the chosen
+  mode + why, and routes (reversible modes run; side-effecting ones are
+  recommended). Below a confidence margin it surfaces alternatives instead of
+  guessing. 1 eval case (5/5 intents) + a test.
+- ⏳ Next: altitude control (task → project → portfolio rollups over the same
+  state) and a thin web control plane reading the same DB + a live event stream.
 
 ## M7 — External-intelligence loop + multi-machine
 Scheduled digest of open-source agent architecture → ranked experiments → evals.

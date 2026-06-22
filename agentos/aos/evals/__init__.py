@@ -312,6 +312,20 @@ def case_browser_qa_rejects_failed_flow():
     return ok, f"status={out['status']}@{out['phase']} (builder ran, evaluator rejected)"
 
 
+def case_ask_router_classifies():
+    """The universal ask surface infers the right mode from plain language."""
+    from .. import ask
+    checks = {
+        "What goals are blocked?": "answer",
+        "Fix the failing login bug": "execute",
+        "Write a weekly KPI report": "harness:report",
+        "Monitor the site every day and alert me": "monitor",
+        "Log in to the website and navigate to billing": "harness:browser",
+    }
+    wrong = {q: ask.classify(q)["mode"] for q, exp in checks.items() if ask.classify(q)["mode"] != exp}
+    return not wrong, f"misroutes={wrong}" if wrong else "5/5 intents routed correctly"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -332,6 +346,7 @@ CASES = {
     "report_harness_schema_gate": case_report_harness_schema_gate,
     "browser_flow_happy_path": case_browser_flow_happy_path,
     "browser_qa_rejects_failed_flow": case_browser_qa_rejects_failed_flow,
+    "ask_router_classifies": case_ask_router_classifies,
 }
 
 

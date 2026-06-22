@@ -155,6 +155,16 @@ def test_coding_harness_resumes_from_failed_phase():
     assert r2["phases"]["plan"] == "done" and r2["phases"]["change"] == "done"
 
 
+def test_ask_router_infers_modes():
+    from aos import ask
+    assert ask.classify("What is blocked?")["mode"] == "answer"
+    assert ask.classify("Fix the failing login bug")["mode"] == "execute"
+    assert ask.classify("Write a weekly KPI report")["mode"] == "harness:report"
+    assert ask.classify("Log in to the website and navigate to billing")["mode"] == "harness:browser"
+    # word-boundary: 'list' inside 'checklist' must not trigger the answer mode
+    assert ask.classify("create an onboarding checklist")["mode"] == "execute"
+
+
 def test_eval_suite_is_repeat_run_stable():
     stable, counts = evals.stability(3)
     assert stable, f"non-deterministic eval suite across runs: {counts}"

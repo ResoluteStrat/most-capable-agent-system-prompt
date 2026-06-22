@@ -24,9 +24,10 @@ python -m aos eval          # run the 6-case eval harness
 python tests/test_loop.py   # same checks via the stdlib test runner
 ```
 
-Then drive a real goal:
+Then drive it — either by intent (the router infers the mode) or explicitly:
 
 ```bash
+python -m aos ask "write a weekly KPI report"   # infers mode → routes (shows why)
 python -m aos goal "Draft an onboarding checklist" --mode ops
 python -m aos run                    # execute + verify all eligible tasks
 python -m aos status                 # human-readable state

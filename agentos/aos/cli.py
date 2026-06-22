@@ -3,6 +3,7 @@
     python -m aos <command> [args]
 
 Commands:
+  ask "<intent>"                              universal entry: infer mode + route
   goal "<title>" [--desc ...] [--mode ...]   intake a goal (creates a project pack)
   run [--goal ID] [--max N]                   drive eligible tasks to completion
   status [--goal ID]                          human-readable state
@@ -236,6 +237,41 @@ def cmd_queues(args):
     print(qf.read_text() if qf.exists() else "queues.md not found")
 
 
+def cmd_ask(args):
+    """Universal entry: infer the mode, show why, route. Reversible modes run;
+    side-effecting ones are recommended (the user stays in control)."""
+    from . import ask, engine
+    text = args.text
+    c = ask.classify(text)
+    conf = "confident" if c["confident"] else f"low-confidence (alts: {c['alternatives']})"
+    print(f"intent: {c['mode']}  [{conf}; signals={c['signals']}]")
+    if not c["confident"]:
+        print("  (ambiguous — routing to the best guess; override with the explicit command)")
+
+    mode = c["mode"]
+    conn = _conn()
+    if mode == "answer":
+        print()
+        cmd_dash(args)
+    elif mode == "monitor":
+        print("\nrouting to the proactive sweep (schedule via your runner for recurrence):\n")
+        cmd_recurring(args)
+    elif mode == "harness:report":
+        print("\nrunning the report harness with defaults:\n")
+        args.name, args.spec, args.goal, args.workspace, args.no_resume = "report", None, None, None, True
+        cmd_harness(args)
+    elif mode == "harness:coding":
+        print("\nrecommended: aos harness coding --spec <change.json>")
+    elif mode == "harness:browser":
+        print("\nrecommended: aos harness browser --spec <flow.json>")
+    else:  # execute
+        gid = engine.create_goal(conn, text)
+        print(f"\ncreated goal {gid}; driving it:\n")
+        for o in engine.run(conn, gid):
+            print(f"  {o.get('result'):8} {o.get('title','')}")
+        print("\n" + json.dumps(engine.metrics(conn)))
+
+
 def cmd_selftest(args):
     """M1 proof: full closed loop + eval suite, deterministic, repeatable."""
     print("AgentOS selftest — proving the closed loop\n")
@@ -272,6 +308,7 @@ def build_parser():
     p = argparse.ArgumentParser(prog="aos", description="AgentOS control plane")
     sub = p.add_subparsers(dest="cmd", required=True)
 
+    ak = sub.add_parser("ask"); ak.add_argument("text"); ak.set_defaults(fn=cmd_ask)
     g = sub.add_parser("goal"); g.add_argument("title"); g.add_argument("--desc")
     g.add_argument("--mode", default="general"); g.set_defaults(fn=cmd_goal)
     r = sub.add_parser("run"); r.add_argument("--goal"); r.add_argument("--max", type=int, default=100)
