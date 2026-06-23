@@ -180,6 +180,16 @@ def test_two_workers_no_double_execution():
     assert done == 10 and runs == 10        # exactly one run per task; no double execution
 
 
+def test_skill_frontmatter_handles_block_scalar():
+    from aos import skills
+    name, desc, body = skills._parse_frontmatter(
+        "---\nname: x\ndescription: |-\n  line one\n  line two\n---\n# Body\n")
+    assert name == "x" and desc == "line one line two" and body.startswith("# Body")
+    # plain scalar still works
+    n2, d2, _ = skills._parse_frontmatter("---\nname: y\ndescription: hi there\n---\nbody")
+    assert n2 == "y" and d2 == "hi there"
+
+
 def test_claude_code_skill_discovered_and_run():
     from aos import skills
     conn = _fresh()

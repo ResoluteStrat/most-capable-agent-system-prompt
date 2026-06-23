@@ -29,22 +29,40 @@ class Skill:
     scripts: list[str] = field(default_factory=list)
 
 
+_BLOCK_SCALARS = {"|", "|-", "|+", ">", ">-", ">+"}
+
+
 def _parse_frontmatter(text: str) -> tuple[str, str, str]:
-    """Return (name, description, body). Tolerates a missing frontmatter block."""
-    name = description = ""
+    """Return (name, description, body). Tolerates a missing frontmatter block and
+    YAML block scalars (`description: |-` followed by indented lines), which it
+    folds into a single line."""
     body = text
-    if text.lstrip().startswith("---"):
-        t = text.lstrip()
-        end = t.find("\n---", 3)
-        if end != -1:
-            fm, body = t[3:end], t[end + 4:].lstrip("\n")
-            for line in fm.splitlines():
-                low = line.lower()
-                if low.startswith("name:"):
-                    name = line.split(":", 1)[1].strip().strip("\"'")
-                elif low.startswith("description:"):
-                    description = line.split(":", 1)[1].strip().strip("\"'")
-    return name, description, body
+    if not text.lstrip().startswith("---"):
+        return "", "", body
+    t = text.lstrip()
+    end = t.find("\n---", 3)
+    if end == -1:
+        return "", "", body
+    fm, body = t[3:end], t[end + 4:].lstrip("\n")
+
+    lines = fm.split("\n")
+    data: dict[str, str] = {}
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if ":" in line and not line.startswith((" ", "\t")):
+            key, _, val = line.partition(":")
+            key, val = key.strip().lower(), val.strip()
+            if val in _BLOCK_SCALARS:                # YAML block scalar → gather indented lines
+                block, i = [], i + 1
+                while i < len(lines) and (lines[i].strip() == "" or lines[i][:1] in (" ", "\t")):
+                    block.append(lines[i].strip())
+                    i += 1
+                data[key] = " ".join(b for b in block if b)
+                continue
+            data[key] = val.strip("\"'")
+        i += 1
+    return data.get("name", ""), data.get("description", ""), body
 
 
 def load(skill_md: Path) -> Skill:
