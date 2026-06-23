@@ -21,8 +21,8 @@ file is the at-a-glance operator view. Updated by `aos queues --sync`.
 ## next
 1. Skill adapter cont. — surface registered skills in the `web` plane; let a
    skill's `run` action declare `on_fail_compensate`.
-2. Observability cont. — a per-goal trajectory rollup in `aos rollup --goal`
-   (fold trace verdicts into the project view).
+2. Interface cont. — render the portfolio "needs attention" inbox (incl. dangerous
+   trajectories) in the `web` dashboard, not just the CLI.
 3. M5 cont. — real Playwright backend behind `BrowserBackend` (deferred: needs a
    real browser + dep, unverifiable here; the seam is ready for when it isn't).
 

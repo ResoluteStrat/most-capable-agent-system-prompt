@@ -190,6 +190,17 @@ def test_skill_frontmatter_handles_block_scalar():
     assert n2 == "y" and d2 == "hi there"
 
 
+def test_rollup_surfaces_dangerous_trajectory():
+    from aos import rollup
+    conn = _fresh()
+    g = engine.create_goal(conn, "risky", tasks=[
+        {"title": "commit then fail", "kind": "python", "spec": {"code": "open('x.txt','w').write('x')"},
+         "verification": {"type": "file_contains", "path": "x.txt", "needle": "NEVER"}, "max_attempts": 1}])
+    engine.run(conn, g)
+    assert len(rollup.project_rollup(conn, g)["dangerous_paths"]) == 1
+    assert rollup.portfolio_rollup(conn)["dangerous_paths"] == 1
+
+
 def test_skill_routing_and_match():
     from aos import profiles, skills
     conn = _fresh()

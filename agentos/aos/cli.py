@@ -301,11 +301,14 @@ def cmd_rollup(args):
         print(f"  pack: {r['project_dir']}")
         for h in r["harnesses"]:
             print(f"  harness {h['harness']}: {h['status']} @ {h['phase']}")
+        for d in r["dangerous_paths"]:
+            print(f"  ⚠ dangerous path {d['task_id']}: {'; '.join(d['findings'])}")
         return
     r = rollup.portfolio_rollup(conn)
     print("PORTFOLIO")
     print(f"  goals: {r['goals']}  (active {r['active']} / done {r['done']} / failed {r['failed']})")
-    print(f"  tasks: blocked {r['blocked_tasks']} · failed {r['failed_tasks']}  "
+    print(f"  tasks: blocked {r['blocked_tasks']} · failed {r['failed_tasks']} · "
+          f"dangerous-paths {r['dangerous_paths']}  "
           f"cost_ticks {r['cost_ticks']}  pending_approvals {r['pending_approvals']}")
     print("  NEEDS ATTENTION:" if r["attention"] else "  needs attention: none")
     for a in r["attention"]:

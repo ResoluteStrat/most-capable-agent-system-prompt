@@ -6,6 +6,7 @@ web UI) can render any altitude and drill between them without switching tools.
 """
 from __future__ import annotations
 
+from . import trace
 from .db import jloads
 
 
@@ -36,11 +37,17 @@ def project_rollup(conn, goal_id) -> dict | None:
     cost = conn.execute("SELECT COALESCE(SUM(r.cost_ticks),0) c FROM runs r "
                         "JOIN tasks t ON r.task_id=t.id WHERE t.goal_id=?", (goal_id,)).fetchone()["c"]
     total = sum(by_status.values())
+    # trajectory judge per task — surfaces dangerous PATHS even on done tasks (rule 22)
+    dangerous = []
+    for r in conn.execute("SELECT id FROM tasks WHERE goal_id=?", (goal_id,)).fetchall():
+        clean, findings = trace.judge(conn, r["id"])
+        if not clean:
+            dangerous.append({"task_id": r["id"], "findings": findings})
     return {"level": "project", "id": goal_id, "title": g["title"], "status": g["status"],
             "project_dir": g["project_dir"], "tasks_total": total,
             "tasks_done": by_status.get("done", 0), "by_status": by_status,
             "blocked": by_status.get("blocked", 0), "failed": by_status.get("failed", 0),
-            "cost_ticks": cost,
+            "cost_ticks": cost, "dangerous_paths": dangerous,
             "harnesses": [{"harness": h["harness"], "status": h["status"], "phase": h["phase"]}
                           for h in harnesses]}
 
@@ -54,6 +61,7 @@ def portfolio_rollup(conn) -> dict:
            "failed": sum(p["status"] == "failed" for p in projects),
            "blocked_tasks": sum(p["blocked"] for p in projects),
            "failed_tasks": sum(p["failed"] for p in projects),
+           "dangerous_paths": sum(len(p["dangerous_paths"]) for p in projects),
            "cost_ticks": sum(p["cost_ticks"] for p in projects)}
     approvals = conn.execute("SELECT COUNT(*) c FROM approvals WHERE status='pending'").fetchone()["c"]
     # attention = where a human is needed or work is stuck (the inbox signal)
@@ -63,6 +71,9 @@ def portfolio_rollup(conn) -> dict:
             attention.append(f"{p['id']} ({p['title']}): {p['failed']} failed task(s)")
         if p["blocked"]:
             attention.append(f"{p['id']} ({p['title']}): {p['blocked']} blocked task(s)")
+        if p["dangerous_paths"]:
+            attention.append(f"{p['id']} ({p['title']}): {len(p['dangerous_paths'])} "
+                             f"dangerous trajectory(ies) — check `aos trace`")
     return {"level": "portfolio", **agg, "pending_approvals": approvals,
             "attention": attention,
             "projects": [{"id": p["id"], "title": p["title"], "status": p["status"],

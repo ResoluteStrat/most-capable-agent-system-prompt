@@ -678,6 +678,24 @@ def case_skill_routing_and_match():
     return ok, f"routed={routed} match={hit['name'] if hit else None} no_false_match={miss is None}"
 
 
+def case_rollup_surfaces_dangerous_path():
+    """A goal whose task failed with an uncompensated side effect shows a dangerous
+    trajectory in the project rollup and in portfolio 'needs attention'."""
+    from .. import rollup
+    conn, _ = _fresh()
+    gid = engine.create_goal(conn, "risky goal", tasks=[
+        {"title": "commit then fail (no undo)", "kind": "python",
+         "spec": {"code": "open('x.txt','w').write('x')"},
+         "verification": {"type": "file_contains", "path": "x.txt", "needle": "NEVER"},
+         "max_attempts": 1}])
+    engine.run(conn, gid)
+    proj = rollup.project_rollup(conn, gid)
+    port = rollup.portfolio_rollup(conn)
+    ok = (len(proj["dangerous_paths"]) == 1 and port["dangerous_paths"] == 1
+          and any("dangerous" in a for a in port["attention"]))
+    return ok, f"project_flagged={len(proj['dangerous_paths'])} portfolio={port['dangerous_paths']}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -715,6 +733,7 @@ CASES = {
     "failed_task_auto_compensates_side_effect": case_failed_task_auto_compensates_side_effect,
     "claude_code_skill_ingested_and_used": case_claude_code_skill_ingested_and_used,
     "skill_routing_and_match": case_skill_routing_and_match,
+    "rollup_surfaces_dangerous_path": case_rollup_surfaces_dangerous_path,
 }
 
 
