@@ -628,6 +628,41 @@ def case_failed_task_auto_compensates_side_effect():
     return ok, f"status={t['status']} effect={eff_status} file_removed={file_gone} trace_clean={no_orphan}"
 
 
+def case_claude_code_skill_ingested_and_used():
+    """AgentOS discovers a Claude Code SKILL.md package, registers it, and runs it
+    through the loop: 'guidance' surfaces the instructions as an artifact, and a
+    bundled 'run' script executes deterministically and is verified."""
+    from pathlib import Path as _P
+
+    from .. import engine, skills
+    conn, _ = _fresh()
+    pkg = _P(__file__).resolve().parents[2] / "examples" / "sample_skill"
+    found = skills.register_all(conn, [str(pkg)])
+    sk = skills.resolve(conn, "hello-skill")
+    discovered = len(found) == 1 and sk and "greet.py" in sk["scripts"]
+
+    # guidance action through the loop
+    g1 = engine.create_goal(conn, "use skill guidance", tasks=[
+        {"title": "guidance", "kind": "skill",
+         "spec": {"skill_path": sk["path"], "action": "guidance"},
+         "verification": {"type": "file_exists", "path": "skill_sample_skill_guidance.md"},
+         "max_attempts": 1}])
+    engine.run(conn, g1)
+    g1_done = conn.execute("SELECT status FROM goals WHERE id=?", (g1,)).fetchone()["status"] == "done"
+
+    # run action through the loop
+    g2 = engine.create_goal(conn, "use skill run", tasks=[
+        {"title": "run greet", "kind": "skill",
+         "spec": {"skill_path": sk["path"], "action": "run", "script": "greet.py", "args": ["ada"]},
+         "verification": {"type": "file_contains", "path": "skill_sample_skill_output.txt",
+                          "needle": "hello, ada"}, "max_attempts": 1}])
+    engine.run(conn, g2)
+    g2_done = conn.execute("SELECT status FROM goals WHERE id=?", (g2,)).fetchone()["status"] == "done"
+
+    ok = bool(discovered) and g1_done and g2_done
+    return ok, f"discovered={bool(discovered)} guidance_done={g1_done} run_done={g2_done}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -663,6 +698,7 @@ CASES = {
     "quarantine_captures_and_replay_recovers": case_quarantine_captures_and_replay_recovers,
     "trace_judges_the_path_not_just_outcome": case_trace_judges_the_path_not_just_outcome,
     "failed_task_auto_compensates_side_effect": case_failed_task_auto_compensates_side_effect,
+    "claude_code_skill_ingested_and_used": case_claude_code_skill_ingested_and_used,
 }
 
 

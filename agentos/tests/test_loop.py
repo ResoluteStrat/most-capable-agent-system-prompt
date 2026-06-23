@@ -180,6 +180,22 @@ def test_two_workers_no_double_execution():
     assert done == 10 and runs == 10        # exactly one run per task; no double execution
 
 
+def test_claude_code_skill_discovered_and_run():
+    from aos import skills
+    conn = _fresh()
+    pkg = Path(__file__).resolve().parents[1] / "examples" / "sample_skill"
+    found = skills.register_all(conn, [str(pkg)])
+    assert len(found) == 1 and skills.resolve(conn, "hello-skill")["scripts"] == ["greet.py"]
+    sk = skills.resolve(conn, "hello-skill")
+    g = engine.create_goal(conn, "use", tasks=[
+        {"title": "run", "kind": "skill",
+         "spec": {"skill_path": sk["path"], "action": "run", "script": "greet.py", "args": ["x"]},
+         "verification": {"type": "file_contains", "path": "skill_sample_skill_output.txt",
+                          "needle": "hello, x"}, "max_attempts": 1}])
+    engine.run(conn, g)
+    assert conn.execute("SELECT status FROM goals WHERE id=?", (g,)).fetchone()["status"] == "done"
+
+
 def test_failed_task_auto_compensates_declared_side_effect():
     from aos import effects, trace
     conn = _fresh()

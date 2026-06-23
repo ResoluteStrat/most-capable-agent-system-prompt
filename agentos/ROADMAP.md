@@ -111,6 +111,19 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   OPTIONAL — returns [] on any failure, never crashes the loop). 1 eval + a test.
 - ⏳ Next: cross-machine git-worktree lanes per worker.
 
+## Capability acquisition — Claude Code skill adapter  ✅
+- `aos/skills.py` + `skills` table + a `skill` executor: AgentOS can DISCOVER a
+  Claude Code `SKILL.md` package (stdlib frontmatter parse), REGISTER it as a
+  capability, and USE it through the normal loop — `action: guidance` surfaces the
+  instructions as an artifact a worker/LLM follows; `action: run` executes a
+  bundled `scripts/<name>` deterministically and verifies the output.
+- `aos skills [--discover PATH]` / `aos skill <name> [--run SCRIPT --args ...]`.
+- Proven on the bundled `examples/sample_skill` (guidance + run) AND on the real
+  `skills/` repo (discovered all 17, ran `pdf` guidance through the loop).
+  1 eval + 1 test.
+- ⏳ Next: harden the frontmatter parser for YAML block-scalar descriptions
+  (`description: |-`); route skill tasks via a `skill-runner` profile.
+
 ## Reliability hardening — idempotent effects + sagas + durable waits  ✅
 - `aos/effects.py` + `effects` table (rules 16-17): every side-effecting action
   goes through the ledger with an **idempotency key** so a retry replays the

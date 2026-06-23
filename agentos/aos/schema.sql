@@ -109,6 +109,16 @@ CREATE TABLE IF NOT EXISTS harness_runs (
 -- Quarantine / dead-letter (rule 21): a terminally-failed task is captured here
 -- with an evidence bundle. Replay is EXPLICIT (operator-driven), never a silent
 -- retry storm. Repeated re-quarantine after replay flags poison.
+-- Registered Claude Code skills (SKILL.md packages) AgentOS has ingested. The
+-- adapter lets AgentOS use external skills as capabilities (capability ladder).
+CREATE TABLE IF NOT EXISTS skills (
+    name        TEXT PRIMARY KEY,
+    description TEXT NOT NULL DEFAULT '',
+    path        TEXT NOT NULL,                     -- the skill package dir
+    scripts     TEXT NOT NULL DEFAULT '[]',        -- JSON list of bundled scripts
+    ts          TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS quarantine (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     ts          TEXT NOT NULL,

@@ -14,14 +14,18 @@ file is the at-a-glance operator view. Updated by `aos queues --sync`.
   multi-worker scale-out (zero double-execution, proven across threads AND
   processes) · `aos effects` idempotent effect ledger + sagas · durable waitpoints
   (timer/signal/approval, cross-process resume) · quarantine/dead-letter with
-  explicit replay (rules 16-21).
+  explicit replay (rules 16-21) · trajectory tracing + path judge + auto-
+  compensation (rule 22) · Claude Code skill adapter (discover/register/use
+  SKILL.md packages through the loop).
 
 ## next
-1. M7 cont. — cross-machine git-worktree lanes per worker for parallel coding.
-2. M5 cont. — real Playwright backend behind `BrowserBackend` (deferred: needs a
+1. Skill adapter cont. — harden the SKILL.md frontmatter parser for YAML block
+   scalars (`description: |-`), and add a `skill-runner` profile so skill tasks
+   route to it; let `aos ask` suggest a matching registered skill.
+2. Refresh DESIGN.md + CAPABILITY_MATRIX to fold in the reliability + interface +
+   skill-adapter layers added since.
+3. M5 cont. — real Playwright backend behind `BrowserBackend` (deferred: needs a
    real browser + dep, unverifiable here; the seam is ready for when it isn't).
-3. Refresh DESIGN.md + CAPABILITY_MATRIX to reflect the reliability + interface
-   layers added since (effects/waits/quarantine/trace/compensation, ask/rollup/web).
 
 ## blocked
 - (none) — single-machine, stdlib build has no external blockers right now.

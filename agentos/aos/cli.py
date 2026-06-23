@@ -21,6 +21,8 @@ Commands:
   web [--port 8787]                           read-only web control plane + live events
   worker [--id W] [--goal ID]                 pull-based worker daemon (run several)
   effects                                     idempotent effect ledger (sagas)
+  skills [--discover PATH]                    discover/list Claude Code SKILL.md packages
+  skill <name> [--run SCRIPT [--args ...]]    use a registered skill via the loop
   trace [--task ID | --goal ID]               trajectory + path judge (rule 22)
   quarantine | replay <task_id>               dead-letter queue: list / explicit replay
   waits | signal <name>                       durable waitpoints: list / deliver a signal
@@ -388,6 +390,50 @@ def cmd_trace(args):
             print(f"  ⚠ {f}")
 
 
+def cmd_skills(args):
+    """Discover/register Claude Code SKILL.md packages, or list registered ones."""
+    from . import skills
+    conn = _conn()
+    if args.discover:
+        found = skills.register_all(conn, [args.discover])
+        print(f"discovered + registered {len(found)} skill(s) from {args.discover}")
+    rows = skills.listing(conn)
+    if not rows:
+        print("no skills registered. discover some: python -m aos skills --discover <path>")
+        return
+    for s in rows:
+        scr = f"  scripts={s['scripts']}" if s["scripts"] else ""
+        print(f"  {s['name']:20} {s['description'][:70]}{scr}")
+
+
+def cmd_skill(args):
+    """Use a registered skill through the AgentOS loop (task → executor → verify)."""
+    from pathlib import Path
+
+    from . import engine, skills
+    conn = _conn()
+    sk = skills.resolve(conn, args.name)
+    if not sk:
+        print(f"unknown skill '{args.name}'. list: python -m aos skills")
+        return
+    dirname = Path(sk["path"]).name
+    if args.run:
+        spec = {"skill_path": sk["path"], "action": "run", "script": args.run, "args": args.args or []}
+        verification = {"type": "exec_ok"}
+    else:
+        spec = {"skill_path": sk["path"], "action": "guidance"}
+        verification = {"type": "file_exists", "path": f"skill_{dirname}_guidance.md"}
+    gid = args.goal or engine.create_goal(conn, f"Use skill: {args.name}", tasks=[])
+    tid = engine.add_task(conn, gid, {
+        "title": f"skill:{args.name} ({spec['action']})", "kind": "skill",
+        "spec": spec, "skill_tags": ["skill"], "verification": verification, "max_attempts": 1})
+    out = engine.run(conn, gid)
+    last = out[-1] if out else {"result": "no-op"}
+    print(f"skill {args.name} → {last.get('result')}")
+    art = conn.execute("SELECT artifacts FROM tasks WHERE id=?", (tid,)).fetchone()["artifacts"]
+    print(f"artifacts: {art}")
+
+
 def cmd_quarantine(args):
     from . import quarantine
     rows = quarantine.listq(_conn())
@@ -491,6 +537,9 @@ def build_parser():
     sub.add_parser("effects").set_defaults(fn=cmd_effects)
     tr = sub.add_parser("trace"); tr.add_argument("--task"); tr.add_argument("--goal")
     tr.set_defaults(fn=cmd_trace)
+    sk = sub.add_parser("skills"); sk.add_argument("--discover"); sk.set_defaults(fn=cmd_skills)
+    sku = sub.add_parser("skill"); sku.add_argument("name"); sku.add_argument("--run")
+    sku.add_argument("--args", nargs="*"); sku.add_argument("--goal"); sku.set_defaults(fn=cmd_skill)
     sub.add_parser("quarantine").set_defaults(fn=cmd_quarantine)
     rp = sub.add_parser("replay"); rp.add_argument("task_id"); rp.set_defaults(fn=cmd_replay)
     sg = sub.add_parser("signal"); sg.add_argument("name"); sg.set_defaults(fn=cmd_signal)

@@ -88,6 +88,41 @@ def exec_gather(spec, project_dir):
                            artifacts=["knowledge.md"])
 
 
+def exec_skill(spec, project_dir):
+    """Use a registered Claude Code skill. spec: {skill_path, action, script?, args?}.
+      action 'guidance' (default): surface the skill's SKILL.md as an artifact a
+        worker/LLM follows (deterministic, safe).
+      action 'run': execute a bundled scripts/<script> under the skill dir."""
+    skill_dir = Path(spec.get("skill_path", ""))
+    if not skill_dir.is_dir():
+        return ExecResult.make(False, f"skill: package not found at {skill_dir}")
+    action = spec.get("action", "guidance")
+    if action == "guidance":
+        md = skill_dir / "SKILL.md"
+        if not md.exists():
+            return ExecResult.make(False, "skill: SKILL.md missing")
+        out = _artifacts_dir(project_dir) / f"skill_{skill_dir.name}_guidance.md"
+        out.write_text(md.read_text(errors="replace"))
+        return ExecResult.make(True, f"surfaced guidance for {skill_dir.name}",
+                               artifacts=[str(out.relative_to(project_dir))])
+    if action == "run":
+        script = skill_dir / "scripts" / spec.get("script", "")
+        if not script.exists():
+            return ExecResult.make(False, f"skill: script {spec.get('script')} not found")
+        try:
+            proc = subprocess.run(["python3", str(script), *map(str, spec.get("args", []))],
+                                  cwd=str(skill_dir), capture_output=True, text=True,
+                                  timeout=spec.get("timeout", 120))
+        except subprocess.TimeoutExpired:
+            return ExecResult.make(False, "skill: script timeout")
+        out = (proc.stdout or "") + (proc.stderr or "")
+        artifact = _artifacts_dir(project_dir) / f"skill_{skill_dir.name}_output.txt"
+        artifact.write_text(out)
+        return ExecResult.make(proc.returncode == 0, output=f"rc={proc.returncode}\n{out[-2000:]}",
+                               artifacts=[str(artifact.relative_to(project_dir))])
+    return ExecResult.make(False, f"skill: unknown action {action}")
+
+
 REGISTRY = {
     "noop": exec_noop,
     "checkpoint": exec_noop,
@@ -95,6 +130,7 @@ REGISTRY = {
     "shell": exec_shell,
     "python": exec_python,
     "gather": exec_gather,
+    "skill": exec_skill,
 }
 
 
