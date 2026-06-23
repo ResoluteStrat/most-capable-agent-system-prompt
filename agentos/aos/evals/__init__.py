@@ -389,13 +389,17 @@ def case_web_snapshot_and_events():
     from .. import web
     conn, _ = _fresh()
     g = engine.create_goal(conn, "web demo"); engine.run(conn, g)
+    from .. import skills as _sk
+    _sk.register_all(conn, [str(Path(__file__).resolve().parents[2] / "examples" / "sample_skill")])
     snap = web.snapshot(conn)
     evs = web.events_since(conn, 0)
     monotonic = all(evs[i]["id"] < evs[i + 1]["id"] for i in range(len(evs) - 1))
     since_filter = web.events_since(conn, evs[-1]["id"]) == [] if evs else True
+    has_skills = any(s["name"] == "hello-skill" for s in snap["skills"])
+    has_danger_key = "dangerous_paths" in snap["portfolio"]
     ok = (snap["portfolio"]["goals"] == 1 and snap["metrics"]["tasks_completed"] == 3
-          and len(evs) > 0 and monotonic and since_filter)
-    return ok, f"goals={snap['portfolio']['goals']} events={len(evs)} since_filter_ok={since_filter}"
+          and len(evs) > 0 and monotonic and since_filter and has_skills and has_danger_key)
+    return ok, f"goals={snap['portfolio']['goals']} events={len(evs)} skills_in_snapshot={has_skills}"
 
 
 def case_two_workers_no_double_execution():

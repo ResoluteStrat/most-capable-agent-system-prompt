@@ -19,10 +19,10 @@ file is the at-a-glance operator view. Updated by `aos queues --sync`.
   SKILL.md packages through the loop).
 
 ## next
-1. Skill adapter cont. — surface registered skills in the `web` plane; let a
-   skill's `run` action declare `on_fail_compensate`.
-2. Interface cont. — render the portfolio "needs attention" inbox (incl. dangerous
-   trajectories) in the `web` dashboard, not just the CLI.
+1. Skill adapter cont. — let a skill's `run` action declare `on_fail_compensate`
+   (close the orphaned-effect loop for skill scripts too).
+2. Interface cont. — a drill-down `/api/goal` view in the web dashboard (click a
+   project → its tasks + trajectory verdicts).
 3. M5 cont. — real Playwright backend behind `BrowserBackend` (deferred: needs a
    real browser + dep, unverifiable here; the seam is ready for when it isn't).
 

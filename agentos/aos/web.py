@@ -18,13 +18,14 @@ import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from . import engine, rollup
+from . import engine, rollup, skills
 from .db import connect, jloads
 
 
 def snapshot(conn) -> dict:
     return {"portfolio": rollup.portfolio_rollup(conn),
-            "metrics": engine.metrics(conn)}
+            "metrics": engine.metrics(conn),
+            "skills": skills.listing(conn)}
 
 
 def events_since(conn, since: int = 0, limit: int = 50) -> list[dict]:
@@ -52,6 +53,7 @@ HTML = """<!doctype html><meta charset=utf-8><title>AgentOS</title>
  <div class=card><h2>Portfolio</h2><div id=port></div></div>
  <div class=card><h2>Metrics</h2><div id=metrics></div></div>
  <div class=card style=grid-column:1/3><h2>Needs attention</h2><div id=attn></div></div>
+ <div class=card style=grid-column:1/3><h2>Registered skills</h2><div id=skills></div></div>
  <div class=card style=grid-column:1/3><h2>Live events</h2><div id=events></div></div>
 </main>
 <script>
@@ -65,10 +67,12 @@ async function tick(){
   const p=s.portfolio;
   el('port').innerHTML=row('goals',`${p.goals} (active ${p.active}/done ${p.done}/failed ${p.failed})`)
     +row('blocked tasks',p.blocked_tasks)+row('failed tasks',p.failed_tasks)
+    +row('dangerous paths',p.dangerous_paths)
     +row('pending approvals',p.pending_approvals)+row('cost ticks',p.cost_ticks)
     +'<hr style=border-color:#26262b>'+p.projects.map(x=>row(`[${x.status}] ${x.title}`,`${x.done}/${x.total}`)).join('');
   el('metrics').innerHTML=Object.entries(s.metrics).map(([k,v])=>row(k,v)).join('');
   el('attn').innerHTML=p.attention.length?p.attention.map(a=>`<div class=attn>• ${a}</div>`).join(''):'<div class=ok>nothing needs attention</div>';
+  el('skills').innerHTML=(s.skills&&s.skills.length)?s.skills.map(k=>row(k.name,k.scripts.length?('scripts: '+k.scripts.join(', ')):'guidance')).join(''):'<div class=k>no skills registered</div>';
   const evs=await (await fetch('/api/events?since='+since)).json();
   if(evs.length){since=evs[evs.length-1].id;
    const box=el('events');
@@ -107,6 +111,8 @@ def make_handler(db_path=None):
                 if u.path == "/api/goal":
                     gid = parse_qs(u.query).get("id", [""])[0]
                     return self._send(200, json.dumps(rollup.project_rollup(conn, gid) or {}))
+                if u.path == "/api/skills":
+                    return self._send(200, json.dumps(skills.listing(conn)))
                 return self._send(404, json.dumps({"error": "not found"}))
             finally:
                 conn.close()
