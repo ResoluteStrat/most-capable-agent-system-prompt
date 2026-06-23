@@ -18,6 +18,7 @@ runtime (Claude Code on an ephemeral Linux container), 2026-06-21.
 | Screenshot / vision | text | Evidence = before/after text snapshots per action. Real screenshots arrive with a real backend. |
 | Desktop input | no | Deferred. |
 | Tool calling | yes | Native to the host agent. |
+| Claude Code skills | yes | `skills.py` + `skill` executor: discover/register a SKILL.md package and run it (guidance or bundled script) through the loop. |
 | Sub-agent support | yes | `Agent` tool — used only when work is parallel/reviewer-split. |
 | Long-running background | partial | Background bash + session re-wake. Not relied on for v1. |
 | Cron / scheduled | no (native) | Emulated via `recurring.md` + `aos recurring` sweeps. |
