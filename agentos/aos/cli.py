@@ -343,6 +343,24 @@ def cmd_ask(args):
     elif mode == "harness:browser":
         print("\nrecommended: aos harness browser --spec <flow.json>")
     else:  # execute
+        from pathlib import Path
+
+        from . import skills
+        sk = skills.match(conn, text)
+        if sk:                                    # a registered skill fits → route to it
+            print(f"\nmatched registered skill '{sk['name']}' — routing through the loop:\n")
+            gid = engine.create_goal(conn, f"ask→skill: {sk['name']}", tasks=[])
+            engine.add_task(conn, gid, {
+                "title": f"skill:{sk['name']} (guidance)", "kind": "skill",
+                "spec": {"skill_path": sk["path"], "action": "guidance"},
+                "skill_tags": ["skill"],
+                "verification": {"type": "file_exists",
+                                 "path": f"skill_{Path(sk['path']).name}_guidance.md"},
+                "max_attempts": 1})
+            for o in engine.run(conn, gid):
+                print(f"  {o.get('result'):8} {o.get('title','')}")
+            print(f"\n(run a bundled script with: aos skill {sk['name']} --run <script>)")
+            return
         gid = engine.create_goal(conn, text)
         print(f"\ncreated goal {gid}; driving it:\n")
         for o in engine.run(conn, gid):

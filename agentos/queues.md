@@ -19,11 +19,11 @@ file is the at-a-glance operator view. Updated by `aos queues --sync`.
   SKILL.md packages through the loop).
 
 ## next
-1. Skill adapter cont. — harden the SKILL.md frontmatter parser for YAML block
-   scalars (`description: |-`), and add a `skill-runner` profile so skill tasks
-   route to it; let `aos ask` suggest a matching registered skill.
-2. Refresh DESIGN.md + CAPABILITY_MATRIX to fold in the reliability + interface +
-   skill-adapter layers added since.
+1. Refresh DESIGN.md + CAPABILITY_MATRIX to fold in the reliability + interface +
+   skill-adapter layers added since (effects/waits/quarantine/trace/compensation,
+   ask/rollup/web/worker, skill adapter + routing).
+2. Skill adapter cont. — surface registered skills in the `web` plane; let a
+   skill's `run` action declare `on_fail_compensate`.
 3. M5 cont. — real Playwright backend behind `BrowserBackend` (deferred: needs a
    real browser + dep, unverifiable here; the seam is ready for when it isn't).
 

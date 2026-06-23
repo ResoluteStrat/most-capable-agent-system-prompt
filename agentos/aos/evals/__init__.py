@@ -663,6 +663,21 @@ def case_claude_code_skill_ingested_and_used():
     return ok, f"discovered={bool(discovered)} guidance_done={g1_done} run_done={g2_done}"
 
 
+def case_skill_routing_and_match():
+    """`skill` tasks route to the skill-runner profile, and a request naming a
+    registered skill is matched (so ask can route to it)."""
+    from pathlib import Path as _P
+
+    from .. import profiles, skills
+    conn, _ = _fresh()
+    routed = profiles.route_profile("skill", [])["name"] == "skill-runner"
+    skills.register_all(conn, [str(_P(__file__).resolve().parents[2] / "examples" / "sample_skill")])
+    hit = skills.match(conn, "please use the hello skill to greet the team")
+    miss = skills.match(conn, "summarize quarterly revenue numbers")   # nothing registered fits
+    ok = routed and hit and hit["name"] == "hello-skill" and miss is None
+    return ok, f"routed={routed} match={hit['name'] if hit else None} no_false_match={miss is None}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -699,6 +714,7 @@ CASES = {
     "trace_judges_the_path_not_just_outcome": case_trace_judges_the_path_not_just_outcome,
     "failed_task_auto_compensates_side_effect": case_failed_task_auto_compensates_side_effect,
     "claude_code_skill_ingested_and_used": case_claude_code_skill_ingested_and_used,
+    "skill_routing_and_match": case_skill_routing_and_match,
 }
 
 

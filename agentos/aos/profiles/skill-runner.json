@@ -1,0 +1,10 @@
+{
+  "name": "skill-runner",
+  "role": "Run an ingested Claude Code skill: surface its guidance or execute a bundled script.",
+  "handles_kinds": ["skill"],
+  "handles_tags": ["skill"],
+  "allowed_executors": ["skill"],
+  "model_tier": "cheap",
+  "verification_standard": "artifact",
+  "escalation": "retry-then-escalate"
+}

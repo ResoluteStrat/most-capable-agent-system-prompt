@@ -121,8 +121,12 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
 - Proven on the bundled `examples/sample_skill` (guidance + run) AND on the real
   `skills/` repo (discovered all 17, ran `pdf` guidance through the loop).
   1 eval + 1 test.
-- ⏳ Next: harden the frontmatter parser for YAML block-scalar descriptions
-  (`description: |-`); route skill tasks via a `skill-runner` profile.
+- ✅ Hardened the frontmatter parser for YAML block scalars (`description: |-`),
+  added a `skill-runner` profile (`skill` tasks route to it), and a
+  `skills.match()` so `aos ask` routes a request naming a registered skill
+  straight through the loop. 1 eval + 2 tests.
+- ⏳ Next: let a skill's `run` action declare an `on_fail_compensate`; surface
+  registered skills in the `web` plane.
 
 ## Reliability hardening — idempotent effects + sagas + durable waits  ✅
 - `aos/effects.py` + `effects` table (rules 16-17): every side-effecting action

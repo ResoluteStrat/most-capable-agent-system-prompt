@@ -14,6 +14,7 @@ Claude Code requires.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -114,3 +115,19 @@ def resolve(conn, name) -> dict | None:
     r = conn.execute("SELECT * FROM skills WHERE name=?", (name,)).fetchone()
     return ({"name": r["name"], "description": r["description"], "path": r["path"],
              "scripts": jloads(r["scripts"], [])} if r else None)
+
+
+_STOP = {"the", "a", "an", "to", "of", "and", "for", "with", "skill", "use", "run", "create"}
+
+
+def match(conn, text: str) -> dict | None:
+    """Best registered skill for a request, by name-token overlap. Returns None
+    when nothing meaningfully matches (so callers fall back to normal routing)."""
+    toks = {w for w in re.findall(r"[a-z0-9]+", text.lower()) if w not in _STOP and len(w) > 2}
+    best, best_score = None, 0
+    for s in listing(conn):
+        name_toks = {w for w in re.split(r"[^a-z0-9]+", s["name"].lower()) if w not in _STOP}
+        score = len(toks & name_toks)
+        if score > best_score:
+            best, best_score = s, score
+    return best if best_score > 0 else None

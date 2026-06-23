@@ -190,6 +190,15 @@ def test_skill_frontmatter_handles_block_scalar():
     assert n2 == "y" and d2 == "hi there"
 
 
+def test_skill_routing_and_match():
+    from aos import profiles, skills
+    conn = _fresh()
+    assert profiles.route_profile("skill", [])["name"] == "skill-runner"
+    skills.register_all(conn, [str(Path(__file__).resolve().parents[1] / "examples" / "sample_skill")])
+    assert skills.match(conn, "use the hello skill")["name"] == "hello-skill"
+    assert skills.match(conn, "reconcile the general ledger") is None
+
+
 def test_claude_code_skill_discovered_and_run():
     from aos import skills
     conn = _fresh()
