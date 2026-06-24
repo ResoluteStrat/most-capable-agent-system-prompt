@@ -23,6 +23,12 @@ WORKER_ID = "worker-local-1"
 SIDE_EFFECTING = {"shell", "python"}
 
 
+def _is_side_effecting(kind, spec) -> bool:
+    """A skill's `run` action executes an external script — a real side effect —
+    so it goes through the ledger too (guidance is pure and does not)."""
+    return kind in SIDE_EFFECTING or (kind == "skill" and spec.get("action") == "run")
+
+
 def _id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex[:8]}"
 
@@ -224,7 +230,7 @@ def tick(conn, goal_id=None, worker_id=WORKER_ID) -> dict | None:
     # reuse procedural memory if a matching recipe exists (memory-reuse metric)
     memory.find_recipe(conn, t["kind"], plan.get("type", "exec_ok"))
 
-    if t["kind"] in SIDE_EFFECTING:
+    if _is_side_effecting(t["kind"], spec):
         # idempotent: a committed side effect is replayed on retry, not re-run
         result = effects.guarded(conn, f"task:{tid}", t["kind"],
                                  lambda: executors.run_executor(t["kind"], spec, project_dir))

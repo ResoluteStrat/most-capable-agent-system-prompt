@@ -700,6 +700,30 @@ def case_rollup_surfaces_dangerous_path():
     return ok, f"project_flagged={len(proj['dangerous_paths'])} portfolio={port['dangerous_paths']}"
 
 
+def case_skill_run_side_effect_compensates():
+    """A skill `run` action is treated as a side effect: when it commits but the
+    task then fails, a declared on_fail_compensate undoes it and the trajectory
+    reads clean — the orphaned-effect loop closes for skills too."""
+    from pathlib import Path as _P
+
+    from .. import effects, skills, trace
+    conn, _ = _fresh()
+    skills.register_all(conn, [str(_P(__file__).resolve().parents[2] / "examples" / "sample_skill")])
+    sk = skills.resolve(conn, "hello-skill")
+    gid = engine.create_goal(conn, "skill side effect", tasks=[
+        {"title": "run greet then fail (with undo)", "kind": "skill",
+         "spec": {"skill_path": sk["path"], "action": "run", "script": "greet.py", "args": ["x"],
+                  "on_fail_compensate": {"kind": "noop", "note": "rollback acknowledged"}},
+         "verification": {"type": "file_contains", "path": "skill_sample_skill_output.txt",
+                          "needle": "NEVER-PRESENT"}, "max_attempts": 1}])
+    engine.run(conn, gid)
+    t = conn.execute("SELECT id, status FROM tasks WHERE goal_id=?", (gid,)).fetchone()
+    eff = effects.status(conn, f"task:{t['id']}")
+    clean = trace.task_trace(conn, t["id"])["clean"]
+    ok = t["status"] == "failed" and eff == "compensated" and clean
+    return ok, f"status={t['status']} effect={eff} trace_clean={clean}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -738,6 +762,7 @@ CASES = {
     "claude_code_skill_ingested_and_used": case_claude_code_skill_ingested_and_used,
     "skill_routing_and_match": case_skill_routing_and_match,
     "rollup_surfaces_dangerous_path": case_rollup_surfaces_dangerous_path,
+    "skill_run_side_effect_compensates": case_skill_run_side_effect_compensates,
 }
 
 

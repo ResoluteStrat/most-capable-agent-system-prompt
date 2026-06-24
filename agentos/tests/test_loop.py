@@ -190,6 +190,23 @@ def test_skill_frontmatter_handles_block_scalar():
     assert n2 == "y" and d2 == "hi there"
 
 
+def test_skill_run_is_side_effecting_and_compensates():
+    from aos import effects, skills, trace
+    conn = _fresh()
+    skills.register_all(conn, [str(Path(__file__).resolve().parents[1] / "examples" / "sample_skill")])
+    sk = skills.resolve(conn, "hello-skill")
+    g = engine.create_goal(conn, "se", tasks=[
+        {"title": "run then fail", "kind": "skill",
+         "spec": {"skill_path": sk["path"], "action": "run", "script": "greet.py", "args": ["x"],
+                  "on_fail_compensate": {"kind": "noop"}},
+         "verification": {"type": "file_contains", "path": "skill_sample_skill_output.txt",
+                          "needle": "NOPE"}, "max_attempts": 1}])
+    engine.run(conn, g)
+    t = conn.execute("SELECT id FROM tasks WHERE goal_id=?", (g,)).fetchone()
+    assert effects.status(conn, f"task:{t['id']}") == "compensated"
+    assert trace.task_trace(conn, t["id"])["clean"] is True
+
+
 def test_rollup_surfaces_dangerous_trajectory():
     from aos import rollup
     conn = _fresh()
