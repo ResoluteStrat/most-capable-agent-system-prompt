@@ -422,6 +422,24 @@ def test_intel_ranks_and_promotes():
     assert d["ranked"][0]["source"] == "Temporal" and d["counts"]["ignore"] == 1
 
 
+def test_cost_expensive_goals_flags_high_per_run():
+    from aos import cost, engine
+    conn = _fresh()
+    engine.run(conn, engine.create_goal(conn, "cheap"))     # per-run 1
+    g = engine.create_goal(conn, "exp", tasks=[
+        {"title": "risky", "kind": "write_file", "risk": "high",
+         "spec": {"path": "r.md", "content": "deploy"},
+         "verification": {"type": "file_contains", "path": "r.md", "needle": "deploy"},
+         "max_attempts": 1}])
+    engine.run(conn, g)
+    t = conn.execute("SELECT id FROM tasks WHERE goal_id=?", (g,)).fetchone()["id"]
+    conn.execute("UPDATE approvals SET status='approved' WHERE task_id=?", (t,))
+    conn.execute("UPDATE tasks SET status='pending' WHERE id=?", (t,)); conn.commit()
+    engine.run(conn, g)
+    exp = cost.expensive_goals(conn)
+    assert len(exp) == 1 and exp[0]["id"] == g and exp[0]["per_run"] == 3.0
+
+
 def test_cost_breakdown_by_tier():
     from aos import cost, engine
     conn = _fresh()

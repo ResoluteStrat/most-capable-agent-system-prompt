@@ -12,7 +12,7 @@ what it queued.
 """
 from __future__ import annotations
 
-from . import improve, mine, rollup
+from . import cost, improve, mine, rollup
 from .db import emit
 
 
@@ -23,6 +23,10 @@ def run(conn, tune=False, auto_promote=False) -> dict:
     for p in port["projects"]:
         if p["status"] == "active" and p["total"] and p["done"] < p["total"]:
             proposals.append(f"{p['id']} ({p['title']}): {p['done']}/{p['total']} done — drive remaining")
+    # cost loop: expensive steps become actionable proposals (route to a cheaper tier)
+    for e in cost.expensive_goals(conn):
+        proposals.append(f"{e['id']} ({e['title']}): {e['per_run']} ticks/run — consider a cheaper "
+                         f"model tier / caching")
     for prop in proposals:
         emit(conn, "proactive.proposal", detail=prop)
 

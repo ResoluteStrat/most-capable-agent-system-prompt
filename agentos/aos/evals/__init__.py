@@ -852,9 +852,34 @@ def case_cost_breakdown_by_tier_and_hotspots():
     return ok, f"tiers={tiers} expensive_goal_cost_per_run={exp['cost'] if exp else None}/{exp['runs'] if exp else None}"
 
 
+def case_sweep_flags_expensive_goal():
+    """The cost loop feeds momentum: the sweep proposes reviewing an expensive
+    (high cost-per-run) goal, but not a cheap one."""
+    from .. import cost, engine, sweep
+    conn, _ = _fresh()
+    engine.run(conn, engine.create_goal(conn, "cheap goal"))     # per-run 1
+    gid = engine.create_goal(conn, "expensive goal", tasks=[
+        {"title": "risky", "kind": "write_file", "risk": "high",
+         "spec": {"path": "r.md", "content": "deploy"},
+         "verification": {"type": "file_contains", "path": "r.md", "needle": "deploy"},
+         "max_attempts": 1}])
+    engine.run(conn, gid)
+    t = conn.execute("SELECT id FROM tasks WHERE goal_id=?", (gid,)).fetchone()["id"]
+    conn.execute("UPDATE approvals SET status='approved' WHERE task_id=?", (t,))
+    conn.execute("UPDATE tasks SET status='pending' WHERE id=?", (t,)); conn.commit()
+    engine.run(conn, gid)                                          # strong run → per-run 3
+    exp = cost.expensive_goals(conn)
+    d = sweep.run(conn)
+    flagged = any(gid in p and "ticks/run" in p for p in d["proposals"])
+    cheap_not_flagged = not any("cheap goal" in p and "ticks/run" in p for p in d["proposals"])
+    ok = len(exp) == 1 and exp[0]["id"] == gid and flagged and cheap_not_flagged
+    return ok, f"expensive={[e['id'] for e in exp]} flagged={flagged}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "cost_breakdown_by_tier_and_hotspots": case_cost_breakdown_by_tier_and_hotspots,
+    "sweep_flags_expensive_goal": case_sweep_flags_expensive_goal,
     "verifier_independent": case_verifier_independent,
     "retry_bounds": case_retry_bounds,
     "safety_deny": case_safety_deny,
@@ -902,7 +927,7 @@ CASES = {
 
 # Meta cases invoke the improvement/sweep machinery; excluded from the suite that
 # improve.py scores against, to avoid recursion (and they aren't tuning signal).
-META_CASES = {"recurring_sweep"}
+META_CASES = {"recurring_sweep", "sweep_flags_expensive_goal"}
 
 
 def run_core_suite():

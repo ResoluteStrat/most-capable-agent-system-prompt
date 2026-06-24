@@ -25,3 +25,13 @@ def hotspots(conn, top=5) -> list[dict]:
         "FROM goals g JOIN tasks t ON t.goal_id=g.id JOIN runs r ON r.task_id=t.id "
         "GROUP BY g.id ORDER BY cost DESC LIMIT ?", (top,)).fetchall()
     return [{"id": r["id"], "title": r["title"], "cost": r["cost"], "runs": r["runs"]} for r in rows]
+
+
+def expensive_goals(conn, per_run_threshold=2.0, top=10) -> list[dict]:
+    """Goals whose average cost PER RUN exceeds the threshold — the expensive steps
+    worth routing to a cheaper tier / caching / making deterministic."""
+    out = []
+    for h in hotspots(conn, top=top):
+        if h["runs"] and (h["cost"] / h["runs"]) > per_run_threshold:
+            out.append({**h, "per_run": round(h["cost"] / h["runs"], 2)})
+    return out
