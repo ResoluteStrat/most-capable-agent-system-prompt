@@ -18,14 +18,15 @@ import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from . import engine, rollup, skills
+from . import engine, mine, rollup, skills
 from .db import connect, jloads
 
 
 def snapshot(conn) -> dict:
     return {"portfolio": rollup.portfolio_rollup(conn),
             "metrics": engine.metrics(conn),
-            "skills": skills.listing(conn)}
+            "skills": skills.listing(conn),
+            "workflows": mine.candidates(conn)}
 
 
 def events_since(conn, since: int = 0, limit: int = 50) -> list[dict]:
@@ -54,7 +55,8 @@ HTML = """<!doctype html><meta charset=utf-8><title>AgentOS</title>
  <div class=card><h2>Metrics</h2><div id=metrics></div></div>
  <div class=card style=grid-column:1/3><h2>Needs attention</h2><div id=attn></div></div>
  <div class=card style=grid-column:1/3><h2>Goal detail (click a project)</h2><div id=detail><div class=k>select a project above</div></div></div>
- <div class=card style=grid-column:1/3><h2>Registered skills</h2><div id=skills></div></div>
+ <div class=card><h2>Registered skills</h2><div id=skills></div></div>
+ <div class=card><h2>Workflow candidates</h2><div id=workflows></div></div>
  <div class=card style=grid-column:1/3><h2>Live events</h2><div id=events></div></div>
 </main>
 <script>
@@ -74,6 +76,7 @@ async function tick(){
   el('metrics').innerHTML=Object.entries(s.metrics).map(([k,v])=>row(k,v)).join('');
   el('attn').innerHTML=p.attention.length?p.attention.map(a=>`<div class=attn>• ${a}</div>`).join(''):'<div class=ok>nothing needs attention</div>';
   el('skills').innerHTML=(s.skills&&s.skills.length)?s.skills.map(k=>row(k.name,k.scripts.length?('scripts: '+k.scripts.join(', ')):'guidance')).join(''):'<div class=k>no skills registered</div>';
+  el('workflows').innerHTML=(s.workflows&&s.workflows.length)?s.workflows.map(w=>row(w.recipe,w.promoted?'✓ promoted':'→ promotable')).join(''):'<div class=k>none mined yet</div>';
   const evs=await (await fetch('/api/events?since='+since)).json();
   if(evs.length){since=evs[evs.length-1].id;
    const box=el('events');

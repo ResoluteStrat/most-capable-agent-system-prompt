@@ -19,10 +19,10 @@ file is the at-a-glance operator view. Updated by `aos queues --sync`.
   SKILL.md packages through the loop).
 
 ## next
-1. Interface cont. — render auto-promoted skills + workflow candidates in the web
-   plane's attention/skills cards.
-2. Cost loop cont. — let the cost proposal carry a concrete suggestion (drop the
+1. Cost loop cont. — let the cost proposal carry a concrete suggestion (drop the
    goal's tasks to the cheap tier) the operator can one-shot apply.
+2. Consolidation — a single `agentos/CAPABILITIES.md` index of every command +
+   subsystem with a one-line "what it proves" (the operator quickstart).
 3. M5 cont. — real Playwright backend behind `BrowserBackend` (deferred: needs a
    real browser + dep, unverifiable here; the seam is ready for when it isn't).
 

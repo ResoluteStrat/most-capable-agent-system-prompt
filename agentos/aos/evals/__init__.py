@@ -412,8 +412,10 @@ def case_web_snapshot_and_events():
     since_filter = web.events_since(conn, evs[-1]["id"]) == [] if evs else True
     has_skills = any(s["name"] == "hello-skill" for s in snap["skills"])
     has_danger_key = "dangerous_paths" in snap["portfolio"]
+    has_workflows_key = "workflows" in snap
     ok = (snap["portfolio"]["goals"] == 1 and snap["metrics"]["tasks_completed"] == 3
-          and len(evs) > 0 and monotonic and since_filter and has_skills and has_danger_key)
+          and len(evs) > 0 and monotonic and since_filter and has_skills and has_danger_key
+          and has_workflows_key)
     return ok, f"goals={snap['portfolio']['goals']} events={len(evs)} skills_in_snapshot={has_skills}"
 
 
