@@ -383,6 +383,21 @@ def case_intel_ranks_and_promotes():
     return ok, f"strong={strong} weak={weak} top={top['source']} promoted={promoted}"
 
 
+def case_web_goal_drilldown():
+    """The /api/goal drill-down returns a goal's task list (for the web detail
+    panel), so a user can zoom from portfolio → project → tasks."""
+    from .. import rollup, web
+    conn, _ = _fresh()
+    gid = engine.create_goal(conn, "drill")
+    engine.run(conn, gid)
+    proj = rollup.project_rollup(conn, gid)
+    handler_data = proj                            # /api/goal returns project_rollup
+    ok = (len(proj["tasks"]) == 3
+          and all({"id", "title", "kind", "status"} <= set(t) for t in proj["tasks"])
+          and all(t["status"] == "done" for t in proj["tasks"]))
+    return ok, f"tasks={len(proj['tasks'])} statuses={[t['status'] for t in proj['tasks']]}"
+
+
 def case_web_snapshot_and_events():
     """The web control plane exposes the same state as JSON (portfolio + metrics +
     a since-filtered live event stream)."""
@@ -813,6 +828,7 @@ CASES = {
     "recurring_sweep": case_recurring_sweep_proposes_and_improves,
     "intel_ranks_and_promotes": case_intel_ranks_and_promotes,
     "web_snapshot_and_events": case_web_snapshot_and_events,
+    "web_goal_drilldown": case_web_goal_drilldown,
     "two_workers_no_double_execution": case_two_workers_no_double_execution,
     "fetcher_parses_and_feeds_intel": case_fetcher_parses_and_feeds_intel,
     "effect_idempotency": case_effect_idempotency,

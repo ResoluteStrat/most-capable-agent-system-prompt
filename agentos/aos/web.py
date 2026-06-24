@@ -53,6 +53,7 @@ HTML = """<!doctype html><meta charset=utf-8><title>AgentOS</title>
  <div class=card><h2>Portfolio</h2><div id=port></div></div>
  <div class=card><h2>Metrics</h2><div id=metrics></div></div>
  <div class=card style=grid-column:1/3><h2>Needs attention</h2><div id=attn></div></div>
+ <div class=card style=grid-column:1/3><h2>Goal detail (click a project)</h2><div id=detail><div class=k>select a project above</div></div></div>
  <div class=card style=grid-column:1/3><h2>Registered skills</h2><div id=skills></div></div>
  <div class=card style=grid-column:1/3><h2>Live events</h2><div id=events></div></div>
 </main>
@@ -69,7 +70,7 @@ async function tick(){
     +row('blocked tasks',p.blocked_tasks)+row('failed tasks',p.failed_tasks)
     +row('dangerous paths',p.dangerous_paths)
     +row('pending approvals',p.pending_approvals)+row('cost ticks',p.cost_ticks)
-    +'<hr style=border-color:#26262b>'+p.projects.map(x=>row(`[${x.status}] ${x.title}`,`${x.done}/${x.total}`)).join('');
+    +'<hr style=border-color:#26262b>'+p.projects.map(x=>`<div class=row style=cursor:pointer onclick="drill('${x.id}')"><span class=k>[${x.status}] ${x.title}</span><span class=v>${x.done}/${x.total} ›</span></div>`).join('');
   el('metrics').innerHTML=Object.entries(s.metrics).map(([k,v])=>row(k,v)).join('');
   el('attn').innerHTML=p.attention.length?p.attention.map(a=>`<div class=attn>• ${a}</div>`).join(''):'<div class=ok>nothing needs attention</div>';
   el('skills').innerHTML=(s.skills&&s.skills.length)?s.skills.map(k=>row(k.name,k.scripts.length?('scripts: '+k.scripts.join(', ')):'guidance')).join(''):'<div class=k>no skills registered</div>';
@@ -82,6 +83,16 @@ async function tick(){
    while(box.childElementCount>40)box.lastChild.remove();}
  }catch(err){el('ts').textContent='disconnected';}
 }
+async function drill(id){
+ const g=await (await fetch('/api/goal?id='+encodeURIComponent(id))).json();
+ let h=`<div class=row><span class=v>${g.title}</span><span class=k>[${g.status}] ${g.tasks_done}/${g.tasks_total}</span></div>`;
+ h+=(g.tasks||[]).map(t=>row(`${t.status} · ${t.kind}`,t.title)).join('');
+ if(g.dangerous_paths&&g.dangerous_paths.length)
+  h+=g.dangerous_paths.map(d=>`<div class=attn>⚠ ${d.task_id}: ${d.findings.join('; ')}</div>`).join('');
+ (g.harnesses||[]).forEach(x=>h+=row('harness '+x.harness,`${x.status} @ ${x.phase}`));
+ el('detail').innerHTML=h;
+}
+window.drill=drill;
 tick();setInterval(tick,2000);
 </script>"""
 

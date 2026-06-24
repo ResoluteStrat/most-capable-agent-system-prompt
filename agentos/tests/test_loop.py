@@ -369,6 +369,15 @@ def test_saga_compensates_on_partial_failure():
     assert statuses["a"] == "compensated" and statuses["b"] == "failed"
 
 
+def test_web_goal_drilldown_returns_tasks():
+    from aos import rollup
+    conn = _fresh()
+    g = engine.create_goal(conn, "drill"); engine.run(conn, g)
+    proj = rollup.project_rollup(conn, g)
+    assert len(proj["tasks"]) == 3
+    assert all({"id", "title", "kind", "status"} <= set(t) for t in proj["tasks"])
+
+
 def test_web_snapshot_and_event_stream():
     from aos import web
     conn = _fresh()

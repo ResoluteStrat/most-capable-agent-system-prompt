@@ -37,9 +37,12 @@ def project_rollup(conn, goal_id) -> dict | None:
     cost = conn.execute("SELECT COALESCE(SUM(r.cost_ticks),0) c FROM runs r "
                         "JOIN tasks t ON r.task_id=t.id WHERE t.goal_id=?", (goal_id,)).fetchone()["c"]
     total = sum(by_status.values())
+    task_rows = conn.execute(
+        "SELECT id, title, kind, status FROM tasks WHERE goal_id=? ORDER BY priority, created_at",
+        (goal_id,)).fetchall()
     # trajectory judge per task — surfaces dangerous PATHS even on done tasks (rule 22)
     dangerous = []
-    for r in conn.execute("SELECT id FROM tasks WHERE goal_id=?", (goal_id,)).fetchall():
+    for r in task_rows:
         clean, findings = trace.judge(conn, r["id"])
         if not clean:
             dangerous.append({"task_id": r["id"], "findings": findings})
@@ -48,6 +51,8 @@ def project_rollup(conn, goal_id) -> dict | None:
             "tasks_done": by_status.get("done", 0), "by_status": by_status,
             "blocked": by_status.get("blocked", 0), "failed": by_status.get("failed", 0),
             "cost_ticks": cost, "dangerous_paths": dangerous,
+            "tasks": [{"id": r["id"], "title": r["title"], "kind": r["kind"],
+                       "status": r["status"]} for r in task_rows],
             "harnesses": [{"harness": h["harness"], "status": h["status"], "phase": h["phase"]}
                           for h in harnesses]}
 

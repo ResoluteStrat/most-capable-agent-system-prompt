@@ -19,10 +19,10 @@ file is the at-a-glance operator view. Updated by `aos queues --sync`.
   SKILL.md packages through the loop).
 
 ## next
-1. Interface cont. — a drill-down `/api/goal` view in the web dashboard (click a
-   project → its tasks + trajectory verdicts).
-2. Self-extension cont. — let the recurring sweep optionally auto-promote a
+1. Self-extension cont. — let the recurring sweep optionally auto-promote a
    workflow candidate after it has been seen N sweeps (trust-gated).
+2. Cost loop — surface the per-goal/model cost breakdown (`runs.cost_ticks` by
+   model tier) in `aos metrics` and the web plane.
 3. M5 cont. — real Playwright backend behind `BrowserBackend` (deferred: needs a
    real browser + dep, unverifiable here; the seam is ready for when it isn't).
 
