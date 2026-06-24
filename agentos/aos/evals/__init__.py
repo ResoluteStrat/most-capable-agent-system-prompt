@@ -778,6 +778,27 @@ def case_workflow_mining_proposes_promotion():
     return ok, f"candidates={[c['recipe'] for c in cands]} idempotent={again == []}"
 
 
+def case_auto_promotion_is_gated_then_fires():
+    """The autonomy ramp: a candidate is NOT auto-promoted until it is both seen
+    enough sweeps AND its recipe is confident (proven by repeated success)."""
+    import tempfile
+
+    from .. import engine, mine, skills
+    conn, _ = _fresh()
+    for _ in range(6):                            # build up recipe confidence via reuse
+        engine.run(conn, engine.create_goal(conn, "repeat"))
+    mine.mine(conn, threshold=3)
+    tmp = tempfile.mkdtemp()
+    # high gate / many sweeps required → nothing promotes yet
+    none_yet = mine.auto_promote(conn, min_sweeps=99, conf_gate=0.75, base_dir=tmp)
+    # realistic gate → the proven write_file recipe auto-promotes
+    promoted = mine.auto_promote(conn, min_sweeps=1, conf_gate=0.75, base_dir=tmp)
+    fired = any("workflow-write-file" in p for p in promoted)
+    registered = fired and skills.resolve(conn, promoted[0]) is not None
+    ok = none_yet == [] and fired and registered
+    return ok, f"gated={none_yet == []} auto_promoted={promoted}"
+
+
 def case_mined_workflow_promotes_to_usable_skill():
     """mine → asset: a mined recipe is promoted into a scaffolded, registered skill
     that then runs through the loop. Promotion is idempotent."""
@@ -846,6 +867,7 @@ CASES = {
     "skill_create_register_use": case_skill_create_register_use,
     "workflow_mining_proposes_promotion": case_workflow_mining_proposes_promotion,
     "mined_workflow_promotes_to_usable_skill": case_mined_workflow_promotes_to_usable_skill,
+    "auto_promotion_is_gated_then_fires": case_auto_promotion_is_gated_then_fires,
 }
 
 

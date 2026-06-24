@@ -422,6 +422,19 @@ def test_intel_ranks_and_promotes():
     assert d["ranked"][0]["source"] == "Temporal" and d["counts"]["ignore"] == 1
 
 
+def test_auto_promotion_is_gated_then_fires():
+    import tempfile
+    from aos import mine
+    conn = _fresh()
+    for _ in range(6):
+        engine.run(conn, engine.create_goal(conn, "r"))
+    mine.mine(conn, threshold=3)
+    tmp = tempfile.mkdtemp()
+    assert mine.auto_promote(conn, min_sweeps=99, conf_gate=0.75, base_dir=tmp) == []   # gated
+    fired = mine.auto_promote(conn, min_sweeps=1, conf_gate=0.75, base_dir=tmp)
+    assert any("workflow-write-file" in p for p in fired)
+
+
 def test_mined_workflow_promotes_to_skill():
     import tempfile
     from aos import mine, skills

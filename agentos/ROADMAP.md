@@ -91,6 +91,10 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   mined candidate into a scaffolded, registered skill that runs through the loop.
   The capability ladder is now fully self-extending: detect repeated success →
   author a skill → use it. Proven end to end, idempotent. 1 eval + 1 test.
+- ✅ Trust-gated auto-promotion (`mine.auto_promote`, `aos recurring --auto-promote`,
+  opt-in): the sweep promotes a candidate to a skill ONLY after it survives
+  `min_sweeps` AND its recipe confidence (proven by reuse) clears the gate.
+  Verified withheld under a strict gate, fires when proven. 1 eval + 1 test.
 
 ## M7 — Self-driving momentum loop + external intelligence + multi-machine  ◑
 - ✅ Self-driving recurring sweep (`aos recurring [--tune]`, `aos/sweep.py`):

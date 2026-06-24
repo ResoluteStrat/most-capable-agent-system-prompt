@@ -207,7 +207,8 @@ def cmd_recurring(args):
     """Self-driving sweep: portfolio scan → proactive proposals + failure→eval
     (+ optional config tuning behind the eval gate). The momentum loop."""
     from . import sweep
-    d = sweep.run(_conn(), tune=getattr(args, "tune", False))
+    d = sweep.run(_conn(), tune=getattr(args, "tune", False),
+                  auto_promote=getattr(args, "auto_promote", False))
     if d["proposals"]:
         print("proactive proposals:")
         for p in d["proposals"]:
@@ -218,6 +219,10 @@ def cmd_recurring(args):
         print("workflow promotion candidates (repeated successes):")
         for w in d["workflow_candidates"]:
             print(f"  - {w}")
+    if d.get("auto_promoted"):
+        print("auto-promoted to skills (proven + trusted):")
+        for s in d["auto_promoted"]:
+            print(f"  ✓ {s}")
     print(f"\nimprove: {d['improve']}   tune: {d['tune']}   "
           f"pending approvals: {d['pending_approvals']}   "
           f"intel experiments queued: {d.get('intel_experiments', 0)}")
@@ -589,7 +594,7 @@ def build_parser():
     a = sub.add_parser("approvals"); a.add_argument("--approve"); a.add_argument("--deny")
     a.set_defaults(fn=cmd_approvals)
     rc = sub.add_parser("recurring"); rc.add_argument("--tune", action="store_true")
-    rc.set_defaults(fn=cmd_recurring)
+    rc.add_argument("--auto-promote", action="store_true"); rc.set_defaults(fn=cmd_recurring)
     it = sub.add_parser("intel"); it.add_argument("--add"); it.add_argument("--fetch")
     it.add_argument("--source"); it.set_defaults(fn=cmd_intel)
     wb = sub.add_parser("web"); wb.add_argument("--port", type=int, default=8787)

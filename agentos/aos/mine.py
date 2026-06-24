@@ -51,6 +51,31 @@ def candidates(conn) -> list[dict]:
     return out
 
 
+def auto_promote(conn, min_sweeps=2, conf_gate=0.75, base_dir=None) -> list[str]:
+    """Autonomy ramp: promote a candidate ONLY after it has survived `min_sweeps`
+    sweeps AND its procedural recipe is confident enough (>= conf_gate, which rises
+    with proven reuse). Opt-in — the sweep calls this only when asked. A repeated,
+    proven workflow becomes a skill with no human in the loop."""
+    promoted = []
+    for c in candidates(conn):
+        if c["promoted"]:
+            continue
+        key = c["recipe"]
+        conn.execute("UPDATE memory SET uses=uses+1 WHERE mkey=?", (f"workflow_promotion:{key}",))
+        conn.commit()
+        wp = conn.execute("SELECT uses FROM memory WHERE mkey=?",
+                          (f"workflow_promotion:{key}",)).fetchone()
+        rec = conn.execute("SELECT confidence FROM memory WHERE mtype='procedural' AND mkey=?",
+                           (key,)).fetchone()
+        if wp["uses"] >= min_sweeps and rec and rec["confidence"] >= conf_gate:
+            sk = promote(conn, key, base_dir)
+            if sk:
+                emit(conn, "workflow.auto_promoted", recipe=key, skill=sk.name,
+                     sweeps=wp["uses"], confidence=rec["confidence"])
+                promoted.append(sk.name)
+    return promoted
+
+
 def promote(conn, recipe_key, base_dir=None):
     """Turn a mined recipe into a scaffolded, registered skill (mine → asset).
     Idempotent: a recipe already promoted returns its existing skill."""

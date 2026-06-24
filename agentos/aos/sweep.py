@@ -16,7 +16,7 @@ from . import improve, mine, rollup
 from .db import emit
 
 
-def run(conn, tune=False) -> dict:
+def run(conn, tune=False, auto_promote=False) -> dict:
     port = rollup.portfolio_rollup(conn)
     proposals = list(port["attention"])
     # idle-but-active goals with no failures still deserve a nudge if they stalled
@@ -29,6 +29,7 @@ def run(conn, tune=False) -> dict:
     improved = improve.cycle(conn)               # failure → regression eval
     tuned = improve.tune_config(conn) if tune else None
     workflow_candidates = mine.mine(conn)        # repeated success → promotion proposal
+    auto_promoted = mine.auto_promote(conn) if auto_promote else []   # opt-in autonomy ramp
 
     # external-intelligence experiments queued from ingested news (M7).
     intel_experiments = conn.execute(
@@ -40,8 +41,9 @@ def run(conn, tune=False) -> dict:
               "improve": improved.get("action"),
               "tune": (tuned or {}).get("action") if tune else "skipped",
               "intel_experiments": intel_experiments,
-              "workflow_candidates": [c["recipe"] for c in workflow_candidates]}
+              "workflow_candidates": [c["recipe"] for c in workflow_candidates],
+              "auto_promoted": auto_promoted}
     emit(conn, "recurring.sweep", proposals=len(proposals),
          improve=digest["improve"], tune=digest["tune"], intel_experiments=intel_experiments,
-         workflow_candidates=len(workflow_candidates))
+         workflow_candidates=len(workflow_candidates), auto_promoted=len(auto_promoted))
     return digest
