@@ -23,6 +23,7 @@ Commands:
   effects                                     idempotent effect ledger (sagas)
   skills [--discover PATH]                    discover/list Claude Code SKILL.md packages
   skill-new <name> [--desc ...]               scaffold a new SKILL.md package + register it
+  workflows [--promote <recipe>]              mined repeated-success recipes → promote to a skill
   skill <name> [--run SCRIPT [--args ...]]    use a registered skill via the loop
   trace [--task ID | --goal ID]               trajectory + path judge (rule 22)
   quarantine | replay <task_id>               dead-letter queue: list / explicit replay
@@ -432,6 +433,28 @@ def cmd_skills(args):
         print(f"  {s['name']:20} {s['description'][:70]}{scr}")
 
 
+def cmd_workflows(args):
+    """List mined workflow promotion candidates, or promote one into a skill."""
+    from . import mine
+    conn = _conn()
+    if args.promote:
+        sk = mine.promote(conn, args.promote)
+        if not sk:
+            print(f"no such recipe '{args.promote}'. list: python -m aos workflows")
+            return
+        print(f"promoted '{args.promote}' → skill '{sk.name}' ({sk.path})")
+        print(f"use it: python -m aos skill {sk.name}")
+        return
+    cands = mine.candidates(conn)
+    if not cands:
+        print("no workflow candidates yet (run `aos recurring` after repeated work).")
+        return
+    for c in cands:
+        mark = "✓ promoted" if c["promoted"] else "→ promotable"
+        print(f"  [{mark}] {c['recipe']}")
+    print("\npromote: python -m aos workflows --promote <recipe>")
+
+
 def cmd_skill_new(args):
     """Scaffold a new SKILL.md package and register it immediately."""
     from . import skills
@@ -577,6 +600,7 @@ def build_parser():
     sk = sub.add_parser("skills"); sk.add_argument("--discover"); sk.set_defaults(fn=cmd_skills)
     snw = sub.add_parser("skill-new"); snw.add_argument("name"); snw.add_argument("--desc")
     snw.add_argument("--dir"); snw.set_defaults(fn=cmd_skill_new)
+    wf = sub.add_parser("workflows"); wf.add_argument("--promote"); wf.set_defaults(fn=cmd_workflows)
     sku = sub.add_parser("skill"); sku.add_argument("name"); sku.add_argument("--run")
     sku.add_argument("--args", nargs="*"); sku.add_argument("--goal"); sku.set_defaults(fn=cmd_skill)
     sub.add_parser("quarantine").set_defaults(fn=cmd_quarantine)

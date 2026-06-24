@@ -763,6 +763,31 @@ def case_workflow_mining_proposes_promotion():
     return ok, f"candidates={[c['recipe'] for c in cands]} idempotent={again == []}"
 
 
+def case_mined_workflow_promotes_to_usable_skill():
+    """mine → asset: a mined recipe is promoted into a scaffolded, registered skill
+    that then runs through the loop. Promotion is idempotent."""
+    import tempfile
+    from pathlib import Path as _P
+
+    from .. import engine, mine, skills
+    conn, _ = _fresh()
+    for _ in range(3):
+        engine.run(conn, engine.create_goal(conn, "repeat"))
+    mine.mine(conn, threshold=3)
+    sk = mine.promote(conn, "recipe:write_file:file_contains", base_dir=tempfile.mkdtemp())
+    again = mine.promote(conn, "recipe:write_file:file_contains", base_dir=tempfile.mkdtemp())
+    registered = sk and skills.resolve(conn, sk.name) is not None
+    g = engine.create_goal(conn, "use promoted", tasks=[
+        {"title": "guidance", "kind": "skill",
+         "spec": {"skill_path": sk.path, "action": "guidance"},
+         "verification": {"type": "file_exists", "path": f"skill_{_P(sk.path).name}_guidance.md"},
+         "max_attempts": 1}])
+    engine.run(conn, g)
+    used = conn.execute("SELECT status FROM goals WHERE id=?", (g,)).fetchone()["status"] == "done"
+    idem = again.name == sk.name
+    return bool(registered) and used and idem, f"skill={sk.name if sk else None} used={used} idempotent={idem}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -804,6 +829,7 @@ CASES = {
     "skill_run_side_effect_compensates": case_skill_run_side_effect_compensates,
     "skill_create_register_use": case_skill_create_register_use,
     "workflow_mining_proposes_promotion": case_workflow_mining_proposes_promotion,
+    "mined_workflow_promotes_to_usable_skill": case_mined_workflow_promotes_to_usable_skill,
 }
 
 

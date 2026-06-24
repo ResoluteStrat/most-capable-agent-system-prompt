@@ -413,6 +413,19 @@ def test_intel_ranks_and_promotes():
     assert d["ranked"][0]["source"] == "Temporal" and d["counts"]["ignore"] == 1
 
 
+def test_mined_workflow_promotes_to_skill():
+    import tempfile
+    from aos import mine, skills
+    conn = _fresh()
+    for _ in range(3):
+        engine.run(conn, engine.create_goal(conn, "r"))
+    mine.mine(conn, threshold=3)
+    sk = mine.promote(conn, "recipe:write_file:file_contains", base_dir=tempfile.mkdtemp())
+    assert sk is not None and skills.resolve(conn, sk.name) is not None
+    # idempotent: same recipe promotes to the same skill name
+    assert mine.promote(conn, "recipe:write_file:file_contains", base_dir=tempfile.mkdtemp()).name == sk.name
+
+
 def test_workflow_mining_is_idempotent():
     from aos import mine
     conn = _fresh()

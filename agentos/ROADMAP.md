@@ -87,6 +87,10 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   promoting them to reusable skills/workflows (recorded in semantic memory +
   `workflow.candidate` events). Idempotent. Wired into the `aos recurring` sweep
   digest. 1 eval + 1 test. (Every repeated success → a reusable-asset proposal.)
+- ✅ mine → asset: `mine.promote()` / `aos workflows --promote <recipe>` turns a
+  mined candidate into a scaffolded, registered skill that runs through the loop.
+  The capability ladder is now fully self-extending: detect repeated success →
+  author a skill → use it. Proven end to end, idempotent. 1 eval + 1 test.
 
 ## M7 — Self-driving momentum loop + external intelligence + multi-machine  ◑
 - ✅ Self-driving recurring sweep (`aos recurring [--tune]`, `aos/sweep.py`):
