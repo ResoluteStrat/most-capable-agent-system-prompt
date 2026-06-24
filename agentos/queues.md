@@ -21,8 +21,8 @@ file is the at-a-glance operator view. Updated by `aos queues --sync`.
 ## next
 1. Interface cont. — a drill-down `/api/goal` view in the web dashboard (click a
    project → its tasks + trajectory verdicts).
-2. Capability cont. — a `skill-creator`-style flow: `aos skill-new <name>` scaffolds
-   a SKILL.md package AgentOS can immediately register and run.
+2. Workflow-mining loop — detect a repeated successful trajectory (same kind+
+   verification recipe used N times) and propose promoting it to a skill/profile.
 3. M5 cont. — real Playwright backend behind `BrowserBackend` (deferred: needs a
    real browser + dep, unverifiable here; the seam is ready for when it isn't).
 

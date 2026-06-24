@@ -18,7 +18,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .db import jdumps, jloads, now
+from .db import ROOT, jdumps, jloads, now
 
 
 @dataclass
@@ -118,6 +118,27 @@ def resolve(conn, name) -> dict | None:
 
 
 _STOP = {"the", "a", "an", "to", "of", "and", "for", "with", "skill", "use", "run", "create"}
+
+
+def scaffold(name: str, description: str = "", base_dir=None) -> Skill:
+    """Create a new SKILL.md package (with a script stub) AgentOS can register and
+    run immediately — the 'turn it into a skill' rung of the capability ladder."""
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "skill"
+    base = Path(base_dir) if base_dir else (ROOT / "skills_created")
+    pkg = base / slug
+    (pkg / "scripts").mkdir(parents=True, exist_ok=True)
+    desc = description or f"Scaffolded skill '{slug}'. Describe when to use it."
+    (pkg / "SKILL.md").write_text(
+        f"---\nname: {slug}\ndescription: {desc}\n---\n\n"
+        f"# {name}\n\nDescribe what this skill does and when to use it.\n\n"
+        f"## Steps\n1. Read this guidance.\n2. Optionally run `scripts/{slug}.py <args>`.\n"
+        f"3. Report the result.\n")
+    (pkg / "scripts" / f"{slug}.py").write_text(
+        "#!/usr/bin/env python3\n"
+        f'"""Bundled script for the {slug} skill. Stdlib only."""\n'
+        "import sys\n\n"
+        f'print(f"{slug} ran with args: {{sys.argv[1:]}}")\n')
+    return load(pkg / "SKILL.md")
 
 
 def match(conn, text: str) -> dict | None:

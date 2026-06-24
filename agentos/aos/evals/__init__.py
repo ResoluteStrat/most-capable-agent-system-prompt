@@ -724,6 +724,31 @@ def case_skill_run_side_effect_compensates():
     return ok, f"status={t['status']} effect={eff} trace_clean={clean}"
 
 
+def case_skill_create_register_use():
+    """The capability ladder closes: AgentOS scaffolds a new SKILL.md package,
+    registers it, and runs both its guidance and its generated script through the
+    loop — create → register → use, all verified."""
+    import tempfile
+    from pathlib import Path as _P
+
+    from .. import engine, skills
+    conn, _ = _fresh()
+    base = _P(tempfile.mkdtemp())
+    sk = skills.scaffold("Daily Standup", "Summarize yesterday/today/blockers.", base_dir=str(base))
+    skills.register(conn, sk)
+    valid = (_P(sk.path) / "SKILL.md").exists() and sk.name == "daily-standup" and "daily-standup.py" in sk.scripts
+    resolved = skills.resolve(conn, "daily-standup") is not None
+    g = engine.create_goal(conn, "use new skill", tasks=[
+        {"title": "run scaffolded script", "kind": "skill",
+         "spec": {"skill_path": sk.path, "action": "run", "script": "daily-standup.py", "args": ["ok"]},
+         "verification": {"type": "file_contains", "path": "skill_daily-standup_output.txt",
+                          "needle": "daily-standup ran"}, "max_attempts": 1}])
+    engine.run(conn, g)
+    used = conn.execute("SELECT status FROM goals WHERE id=?", (g,)).fetchone()["status"] == "done"
+    ok = bool(valid) and resolved and used
+    return ok, f"scaffolded={bool(valid)} registered={resolved} ran={used}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -763,6 +788,7 @@ CASES = {
     "skill_routing_and_match": case_skill_routing_and_match,
     "rollup_surfaces_dangerous_path": case_rollup_surfaces_dangerous_path,
     "skill_run_side_effect_compensates": case_skill_run_side_effect_compensates,
+    "skill_create_register_use": case_skill_create_register_use,
 }
 
 

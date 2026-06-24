@@ -218,6 +218,23 @@ def test_rollup_surfaces_dangerous_trajectory():
     assert rollup.portfolio_rollup(conn)["dangerous_paths"] == 1
 
 
+def test_skill_scaffold_register_and_run():
+    import tempfile
+    from aos import skills
+    conn = _fresh()
+    sk = skills.scaffold("My New Skill", "does a thing", base_dir=tempfile.mkdtemp())
+    skills.register(conn, sk)
+    assert sk.name == "my-new-skill" and "my-new-skill.py" in sk.scripts
+    assert skills.resolve(conn, "my-new-skill") is not None
+    g = engine.create_goal(conn, "use", tasks=[
+        {"title": "run", "kind": "skill",
+         "spec": {"skill_path": sk.path, "action": "run", "script": "my-new-skill.py"},
+         "verification": {"type": "file_contains", "path": "skill_my-new-skill_output.txt",
+                          "needle": "my-new-skill ran"}, "max_attempts": 1}])
+    engine.run(conn, g)
+    assert conn.execute("SELECT status FROM goals WHERE id=?", (g,)).fetchone()["status"] == "done"
+
+
 def test_skill_routing_and_match():
     from aos import profiles, skills
     conn = _fresh()

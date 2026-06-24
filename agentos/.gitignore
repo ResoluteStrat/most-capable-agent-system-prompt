@@ -10,5 +10,8 @@ projects/*
 aos/evals/generated/*
 !aos/evals/generated/.gitkeep
 
+# Skills scaffolded at runtime by `aos skill-new`.
+skills_created/
+
 __pycache__/
 *.pyc

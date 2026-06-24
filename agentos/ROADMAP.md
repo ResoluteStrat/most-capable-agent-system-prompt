@@ -125,8 +125,13 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   added a `skill-runner` profile (`skill` tasks route to it), and a
   `skills.match()` so `aos ask` routes a request naming a registered skill
   straight through the loop. 1 eval + 2 tests.
-- ⏳ Next: let a skill's `run` action declare an `on_fail_compensate`; surface
-  registered skills in the `web` plane.
+- ✅ Skill `run` routes through the effect ledger (idempotent + orphaned-effect
+  detection + auto-compensation for skill scripts); registered skills + dangerous
+  trajectories surfaced in the `web` plane (`/api/skills`).
+- ✅ `aos skill-new <name>` scaffolds a new SKILL.md package (frontmatter + script
+  stub) and registers it — the "turn it into a skill" rung. Proven create →
+  register → run through the loop. 1 eval + 1 test. The capability ladder now runs
+  both directions: AgentOS consumes external skills AND authors new ones.
 
 ## Reliability hardening — idempotent effects + sagas + durable waits  ✅
 - `aos/effects.py` + `effects` table (rules 16-17): every side-effecting action
