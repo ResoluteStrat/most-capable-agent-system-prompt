@@ -749,6 +749,20 @@ def case_skill_create_register_use():
     return ok, f"scaffolded={bool(valid)} registered={resolved} ran={used}"
 
 
+def case_workflow_mining_proposes_promotion():
+    """A recipe used repeatedly across goals is mined and proposed for promotion;
+    re-mining is idempotent (proposed once)."""
+    from .. import mine
+    conn, _ = _fresh()
+    for _ in range(3):                            # same recipes (write_file/file_contains, …) reused
+        engine.run(conn, engine.create_goal(conn, "repeat"))
+    cands = mine.mine(conn, threshold=3)
+    again = mine.mine(conn, threshold=3)          # idempotent → nothing new
+    proposed_writefile = any("write_file" in c["recipe"] and c["uses"] >= 3 for c in cands)
+    ok = proposed_writefile and again == []
+    return ok, f"candidates={[c['recipe'] for c in cands]} idempotent={again == []}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "verifier_independent": case_verifier_independent,
@@ -789,6 +803,7 @@ CASES = {
     "rollup_surfaces_dangerous_path": case_rollup_surfaces_dangerous_path,
     "skill_run_side_effect_compensates": case_skill_run_side_effect_compensates,
     "skill_create_register_use": case_skill_create_register_use,
+    "workflow_mining_proposes_promotion": case_workflow_mining_proposes_promotion,
 }
 
 

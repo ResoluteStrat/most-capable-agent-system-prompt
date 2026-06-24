@@ -413,6 +413,16 @@ def test_intel_ranks_and_promotes():
     assert d["ranked"][0]["source"] == "Temporal" and d["counts"]["ignore"] == 1
 
 
+def test_workflow_mining_is_idempotent():
+    from aos import mine
+    conn = _fresh()
+    for _ in range(3):
+        engine.run(conn, engine.create_goal(conn, "r"))
+    first = mine.mine(conn, threshold=3)
+    assert any("write_file" in c["recipe"] for c in first)
+    assert mine.mine(conn, threshold=3) == []        # proposed once
+
+
 def test_recurring_sweep_proposes_and_improves():
     from aos import sweep
     conn = _fresh()

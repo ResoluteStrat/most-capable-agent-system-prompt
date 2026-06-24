@@ -82,6 +82,12 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   action surface). Data layer is pure functions; smoke-tested against a live
   socket. 1 eval + a test.
 
+## Workflow-mining loop  ✅
+- `aos/mine.py`: scans procedural memory for recipes used ≥ threshold and proposes
+  promoting them to reusable skills/workflows (recorded in semantic memory +
+  `workflow.candidate` events). Idempotent. Wired into the `aos recurring` sweep
+  digest. 1 eval + 1 test. (Every repeated success → a reusable-asset proposal.)
+
 ## M7 — Self-driving momentum loop + external intelligence + multi-machine  ◑
 - ✅ Self-driving recurring sweep (`aos recurring [--tune]`, `aos/sweep.py`):
   portfolio scan → proactive proposals for failed/blocked/stalled work + the

@@ -12,7 +12,7 @@ what it queued.
 """
 from __future__ import annotations
 
-from . import improve, rollup
+from . import improve, mine, rollup
 from .db import emit
 
 
@@ -28,6 +28,7 @@ def run(conn, tune=False) -> dict:
 
     improved = improve.cycle(conn)               # failure → regression eval
     tuned = improve.tune_config(conn) if tune else None
+    workflow_candidates = mine.mine(conn)        # repeated success → promotion proposal
 
     # external-intelligence experiments queued from ingested news (M7).
     intel_experiments = conn.execute(
@@ -38,7 +39,9 @@ def run(conn, tune=False) -> dict:
               "pending_approvals": port["pending_approvals"],
               "improve": improved.get("action"),
               "tune": (tuned or {}).get("action") if tune else "skipped",
-              "intel_experiments": intel_experiments}
+              "intel_experiments": intel_experiments,
+              "workflow_candidates": [c["recipe"] for c in workflow_candidates]}
     emit(conn, "recurring.sweep", proposals=len(proposals),
-         improve=digest["improve"], tune=digest["tune"], intel_experiments=intel_experiments)
+         improve=digest["improve"], tune=digest["tune"], intel_experiments=intel_experiments,
+         workflow_candidates=len(workflow_candidates))
     return digest

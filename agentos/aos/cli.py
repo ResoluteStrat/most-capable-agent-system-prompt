@@ -213,6 +213,10 @@ def cmd_recurring(args):
             print(f"  - {p}")
     else:
         print("sweep clean: no stalled or failed work detected.")
+    if d.get("workflow_candidates"):
+        print("workflow promotion candidates (repeated successes):")
+        for w in d["workflow_candidates"]:
+            print(f"  - {w}")
     print(f"\nimprove: {d['improve']}   tune: {d['tune']}   "
           f"pending approvals: {d['pending_approvals']}   "
           f"intel experiments queued: {d.get('intel_experiments', 0)}")
