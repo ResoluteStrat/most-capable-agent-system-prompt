@@ -422,6 +422,25 @@ def test_intel_ranks_and_promotes():
     assert d["ranked"][0]["source"] == "Temporal" and d["counts"]["ignore"] == 1
 
 
+def test_cost_breakdown_by_tier():
+    from aos import cost, engine
+    conn = _fresh()
+    engine.run(conn, engine.create_goal(conn, "cheap"))     # cheap runs
+    g = engine.create_goal(conn, "exp", tasks=[
+        {"title": "risky", "kind": "write_file", "risk": "high",
+         "spec": {"path": "r.md", "content": "deploy"},
+         "verification": {"type": "file_contains", "path": "r.md", "needle": "deploy"},
+         "max_attempts": 1}])
+    engine.run(conn, g)
+    t = conn.execute("SELECT id FROM tasks WHERE goal_id=?", (g,)).fetchone()["id"]
+    conn.execute("UPDATE approvals SET status='approved' WHERE task_id=?", (t,))
+    conn.execute("UPDATE tasks SET status='pending' WHERE id=?", (t,)); conn.commit()
+    engine.run(conn, g)
+    tiers = cost.by_tier(conn)
+    assert tiers.get("cheap", 0) >= 3 and tiers.get("strong", 0) == 3
+    assert "cost_by_tier" in engine.metrics(conn)
+
+
 def test_auto_promotion_is_gated_then_fires():
     import tempfile
     from aos import mine

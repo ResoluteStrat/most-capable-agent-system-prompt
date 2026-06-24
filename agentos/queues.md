@@ -19,8 +19,8 @@ file is the at-a-glance operator view. Updated by `aos queues --sync`.
   SKILL.md packages through the loop).
 
 ## next
-1. Cost loop — surface the per-goal/model cost breakdown (`runs.cost_ticks` by
-   model tier) in `aos metrics` and the web plane.
+1. Cost loop cont. — have the recurring sweep flag a goal whose cost-per-run
+   exceeds a threshold (expensive-step proposal), and render cost-by-tier in web.
 2. Interface cont. — render auto-promoted skills + workflow candidates in the web
    plane's attention/skills cards.
 3. M5 cont. — real Playwright backend behind `BrowserBackend` (deferred: needs a

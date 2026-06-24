@@ -11,7 +11,7 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
-from . import (autonomy, effects, executors, memory, profiles, projectpack,
+from . import (autonomy, cost, effects, executors, memory, profiles, projectpack,
                quarantine, verify, waitpoints)
 from .adapters import model as model_adapter
 from .db import emit, init_db, jdumps, jloads, now
@@ -417,4 +417,5 @@ def metrics(conn) -> dict:
         "eval_pass_rate": round(eval_pass / eval_total, 3) if eval_total else 0.0,
         "memory_reuse": round(memory.reuse_rate(conn), 3),
         "cost_ticks": g("SELECT COALESCE(SUM(cost_ticks),0) FROM runs"),
+        "cost_by_tier": cost.by_tier(conn),
     }

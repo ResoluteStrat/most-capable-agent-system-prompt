@@ -11,6 +11,7 @@ Commands:
   dash                                        live dashboard (queues, recent events)
   queues [--sync]                             show / sync momentum queues
   metrics                                     proof-of-progress metrics
+  costs                                       cost by model tier + expensive-goal hotspots
   eval                                        run the eval harness
   improve [--tune]                            one bounded self-improvement cycle
                                               (--tune = config keep/revert behind evals)
@@ -110,6 +111,18 @@ def cmd_dash(args):
 
 def cmd_metrics(args):
     print(json.dumps(engine.metrics(_conn()), indent=2))
+
+
+def cmd_costs(args):
+    from . import cost, engine
+    conn = _conn()
+    print("COST by tier:", json.dumps(cost.by_tier(conn)))
+    print(f"total cost_ticks: {engine.metrics(conn)['cost_ticks']}")
+    hs = cost.hotspots(conn)
+    if hs:
+        print("\nmost expensive goals:")
+        for h in hs:
+            print(f"  {h['cost']:4} ticks ({h['runs']} runs)  {h['id']}  {h['title']}")
 
 
 def cmd_eval(args):
@@ -586,6 +599,7 @@ def build_parser():
     rl.set_defaults(fn=cmd_rollup)
     sub.add_parser("dash").set_defaults(fn=cmd_dash)
     sub.add_parser("metrics").set_defaults(fn=cmd_metrics)
+    sub.add_parser("costs").set_defaults(fn=cmd_costs)
     sub.add_parser("eval").set_defaults(fn=cmd_eval)
     im = sub.add_parser("improve"); im.add_argument("--tune", action="store_true")
     im.set_defaults(fn=cmd_improve)

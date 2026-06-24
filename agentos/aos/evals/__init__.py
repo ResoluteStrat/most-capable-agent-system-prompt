@@ -824,8 +824,37 @@ def case_mined_workflow_promotes_to_usable_skill():
     return bool(registered) and used and idem, f"skill={sk.name if sk else None} used={used} idempotent={idem}"
 
 
+def case_cost_breakdown_by_tier_and_hotspots():
+    """Cost rolls up by model tier (cheap vs strong) and by goal: a high-risk task
+    routed to the strong tier costs more, and the expensive goal tops the hotspots."""
+    from .. import cost, engine
+    conn, _ = _fresh()
+    engine.run(conn, engine.create_goal(conn, "cheap goal"))     # 3 cheap runs
+    gid = engine.create_goal(conn, "expensive goal", tasks=[
+        {"title": "risky", "kind": "write_file", "risk": "high",
+         "spec": {"path": "r.md", "content": "deploy"},
+         "verification": {"type": "file_contains", "path": "r.md", "needle": "deploy"},
+         "max_attempts": 1}])
+    engine.run(conn, gid)                                          # awaiting approval
+    t = conn.execute("SELECT id FROM tasks WHERE goal_id=?", (gid,)).fetchone()["id"]
+    conn.execute("UPDATE approvals SET status='approved' WHERE task_id=?", (t,))
+    conn.execute("UPDATE tasks SET status='pending' WHERE id=?", (t,))
+    conn.commit()
+    engine.run(conn, gid)                                          # strong-tier run (cost 3)
+    tiers = cost.by_tier(conn)
+    hs = cost.hotspots(conn)
+    exp = next((h for h in hs if h["id"] == gid), None)
+    metrics_has = "cost_by_tier" in engine.metrics(conn)
+    # deterministic signal: the strong-tier goal spent 3 ticks in ONE run (an
+    # expensive step), vs the cheap goal's 3 ticks across 3 runs.
+    ok = (tiers.get("cheap", 0) >= 3 and tiers.get("strong", 0) == 3
+          and exp and exp["cost"] == 3 and exp["runs"] == 1 and metrics_has)
+    return ok, f"tiers={tiers} expensive_goal_cost_per_run={exp['cost'] if exp else None}/{exp['runs'] if exp else None}"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
+    "cost_breakdown_by_tier_and_hotspots": case_cost_breakdown_by_tier_and_hotspots,
     "verifier_independent": case_verifier_independent,
     "retry_bounds": case_retry_bounds,
     "safety_deny": case_safety_deny,
