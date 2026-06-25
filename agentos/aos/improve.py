@@ -24,15 +24,30 @@ from .db import ROOT, emit, now
 
 GEN_DIR = Path(__file__).resolve().parent / "evals" / "generated"
 
+# Re-entrancy guard (structural fix for a recurring footgun): improve.cycle and
+# tune_config run the eval suite; if a case in that suite calls back into the
+# improvement/sweep machinery, that nested call must NOT run another suite (which
+# would recurse forever). While scoring is in progress this flag is set, and the
+# nested cycle/tune_config short-circuit to a no-op. This protects the whole class
+# regardless of whether a new case was remembered to be added to evals.META_CASES.
+_in_scoring = False
+
 
 def _score(conn):
     # score against the core suite (excludes meta-cases that re-enter improve/sweep)
-    results = evals.run_core_suite()
+    global _in_scoring
+    _in_scoring = True
+    try:
+        results = evals.run_core_suite()
+    finally:
+        _in_scoring = False
     passed = sum(1 for _, p, _ in results if p)
     return passed, len(results)
 
 
 def cycle(conn) -> dict:
+    if _in_scoring:                              # nested inside a scoring run → no-op
+        return {"action": "noop", "note": "skipped: nested inside eval scoring"}
     GEN_DIR.mkdir(parents=True, exist_ok=True)
     base_pass, total = _score(conn)
 
@@ -88,6 +103,8 @@ def tune_config(conn) -> dict:
     re-measure the eval suite, keep iff strictly better, else revert. Equal score
     → revert (simpler/default wins). Fully logged. Honest: with a green suite the
     expected outcome is a logged rejection, which is exactly the safety property."""
+    if _in_scoring:                              # nested inside a scoring run → no-op
+        return {"action": "noop", "note": "skipped: nested inside eval scoring"}
     base_pass = _eval_pass_count()
     key, candidate = TUNE_HYPOTHESES[0]
     old = config.get(key)
@@ -116,4 +133,9 @@ def tune_config(conn) -> dict:
 
 
 def _eval_pass_count() -> int:
-    return sum(1 for _, passed, _ in evals.run_core_suite() if passed)
+    global _in_scoring
+    _in_scoring = True
+    try:
+        return sum(1 for _, passed, _ in evals.run_core_suite() if passed)
+    finally:
+        _in_scoring = False

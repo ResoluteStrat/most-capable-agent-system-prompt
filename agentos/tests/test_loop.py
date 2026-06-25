@@ -422,6 +422,20 @@ def test_intel_ranks_and_promotes():
     assert d["ranked"][0]["source"] == "Temporal" and d["counts"]["ignore"] == 1
 
 
+def test_improve_reentrancy_guard_prevents_nested_suite_runs():
+    import aos.improve as imp
+    conn = _fresh()
+    assert imp._in_scoring is False
+    imp._in_scoring = True                       # simulate "inside eval scoring"
+    try:
+        assert imp.cycle(conn)["action"] == "noop"          # nested → no-op
+        assert imp.tune_config(conn)["action"] == "noop"    # nested → no-op
+    finally:
+        imp._in_scoring = False
+    imp._score(conn)                             # a real scoring run resets the flag
+    assert imp._in_scoring is False
+
+
 def test_cost_expensive_goals_flags_high_per_run():
     from aos import cost, engine
     conn = _fresh()

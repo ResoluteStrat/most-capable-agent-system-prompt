@@ -927,8 +927,11 @@ CASES = {
 }
 
 
-# Meta cases invoke the improvement/sweep machinery; excluded from the suite that
-# improve.py scores against, to avoid recursion (and they aren't tuning signal).
+# Meta cases invoke the improvement/sweep machinery. They are excluded from the
+# suite improve.py scores against — now purely as a PERFORMANCE optimization (so
+# scoring doesn't redundantly re-run sweep/improve work). Correctness against
+# infinite recursion is handled structurally by improve.py's _in_scoring guard,
+# so forgetting to list a new case here can no longer hang the suite.
 META_CASES = {"recurring_sweep", "sweep_flags_expensive_goal"}
 
 

@@ -30,6 +30,8 @@ file is the at-a-glance operator view. Updated by `aos queues --sync`.
 - (none) — single-machine, stdlib build has no external blockers right now.
 
 ## improve
+- (resolved) recurring sweep→improve recursion class — now structurally guarded by
+  improve._in_scoring; META_CASES is a perf optimization, not a correctness need.
 - Add a failure→guardrail converter: any task that fails twice the same way
   auto-creates an eval case. (failure loop)
 - Replace tick-count cost proxy with real token/cost accounting once an LLM
