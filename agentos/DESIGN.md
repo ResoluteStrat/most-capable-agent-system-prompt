@@ -78,7 +78,7 @@ sweep (portfolio scan → proactive proposals + failure→eval + optional tune +
 queued intel experiments). Every milestone left a reusable ratchet (skill/profile/
 harness/eval/dashboard/policy/memory).
 
-## Command reference (27 commands, all checked against the parser)
+## Command reference (30 commands, all checked against the parser)
 `ask · goal · run · status · rollup · dash · metrics · eval · improve [--tune] ·
 config · approvals · recurring [--tune] · intel [--add|--fetch] · web · effects ·
 trace · skills [--discover] · skill <name> [--run] · quarantine · replay · signal ·
