@@ -12,6 +12,7 @@ Commands:
   queues [--sync]                             show / sync momentum queues
   metrics                                     proof-of-progress metrics
   costs                                       cost by model tier + expensive-goal hotspots
+  consolidate [--prune]                       memory loop: episodic logs → semantic facts
   eval                                        run the eval harness
   improve [--tune]                            one bounded self-improvement cycle
                                               (--tune = config keep/revert behind evals)
@@ -107,6 +108,15 @@ def cmd_dash(args):
     pend = conn.execute("SELECT COUNT(*) c FROM approvals WHERE status='pending'").fetchone()["c"]
     if pend:
         print(f"\n⏸  {pend} approval(s) pending → python -m aos approvals")
+
+
+def cmd_consolidate(args):
+    from . import consolidate
+    conn = _conn()
+    out = consolidate.consolidate(conn, prune=args.prune)
+    print(json.dumps(out))
+    for s in consolidate.summaries(conn):
+        print(f"  {s['value']}")
 
 
 def cmd_metrics(args):
@@ -600,6 +610,8 @@ def build_parser():
     sub.add_parser("dash").set_defaults(fn=cmd_dash)
     sub.add_parser("metrics").set_defaults(fn=cmd_metrics)
     sub.add_parser("costs").set_defaults(fn=cmd_costs)
+    cs = sub.add_parser("consolidate"); cs.add_argument("--prune", action="store_true")
+    cs.set_defaults(fn=cmd_consolidate)
     sub.add_parser("eval").set_defaults(fn=cmd_eval)
     im = sub.add_parser("improve"); im.add_argument("--tune", action="store_true")
     im.set_defaults(fn=cmd_improve)

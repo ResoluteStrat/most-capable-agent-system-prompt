@@ -12,7 +12,7 @@ what it queued.
 """
 from __future__ import annotations
 
-from . import cost, improve, mine, rollup
+from . import consolidate, cost, improve, mine, rollup
 from .db import emit
 
 
@@ -34,6 +34,7 @@ def run(conn, tune=False, auto_promote=False) -> dict:
     tuned = improve.tune_config(conn) if tune else None
     workflow_candidates = mine.mine(conn)        # repeated success → promotion proposal
     auto_promoted = mine.auto_promote(conn) if auto_promote else []   # opt-in autonomy ramp
+    consolidate.consolidate(conn)                # memory loop: episodic → semantic facts
 
     # external-intelligence experiments queued from ingested news (M7).
     intel_experiments = conn.execute(

@@ -36,7 +36,8 @@ file is the at-a-glance operator view. Updated by `aos queues --sync`.
   auto-creates an eval case. (failure loop)
 - Replace tick-count cost proxy with real token/cost accounting once an LLM
   executor adapter lands. (cost loop)
-- Memory consolidation job: compress episodic events into semantic facts. (memory loop)
+- (resolved) Memory consolidation job — `consolidate.py` rolls episodic outcomes
+  into per-kind semantic facts; wired into the sweep + `aos consolidate`. (memory loop)
 
 ## recurring
 - `aos recurring` sweep: scan projects for blocked tasks, stale handoffs, dirty

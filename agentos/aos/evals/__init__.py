@@ -878,10 +878,31 @@ def case_sweep_flags_expensive_goal():
     return ok, f"expensive={[e['id'] for e in exp]} flagged={flagged}"
 
 
+def case_memory_consolidation_summarizes_by_kind():
+    """The memory loop compresses episodic task outcomes into stable semantic facts
+    per executor kind (with a success rate); re-running is idempotent."""
+    from .. import consolidate
+    conn, _ = _fresh()
+    engine.run(conn, engine.create_goal(conn, "ok"))      # write_file done, etc.
+    engine.run(conn, engine.create_goal(conn, "bad", tasks=[
+        {"title": "f", "kind": "noop", "spec": {},
+         "verification": {"type": "file_exists", "path": "no.md"}, "max_attempts": 1}]))
+    consolidate.consolidate(conn)
+    n1 = conn.execute("SELECT COUNT(*) c FROM memory WHERE mkey LIKE 'memory.summary:%'").fetchone()["c"]
+    consolidate.consolidate(conn)                          # idempotent
+    n2 = conn.execute("SELECT COUNT(*) c FROM memory WHERE mkey LIKE 'memory.summary:%'").fetchone()["c"]
+    wf = conn.execute("SELECT value FROM memory WHERE mkey='memory.summary:kind:write_file'").fetchone()
+    noop = conn.execute("SELECT value FROM memory WHERE mkey='memory.summary:kind:noop'").fetchone()
+    ok = (n1 == n2 and n1 >= 2 and wf and "1 done" in wf["value"]
+          and noop and "failed" in noop["value"])
+    return ok, f"summaries={n1} idempotent={n1 == n2} write_file='{wf['value'] if wf else None}'"
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "cost_breakdown_by_tier_and_hotspots": case_cost_breakdown_by_tier_and_hotspots,
     "sweep_flags_expensive_goal": case_sweep_flags_expensive_goal,
+    "memory_consolidation_summarizes_by_kind": case_memory_consolidation_summarizes_by_kind,
     "verifier_independent": case_verifier_independent,
     "retry_bounds": case_retry_bounds,
     "safety_deny": case_safety_deny,

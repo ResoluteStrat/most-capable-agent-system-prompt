@@ -422,6 +422,17 @@ def test_intel_ranks_and_promotes():
     assert d["ranked"][0]["source"] == "Temporal" and d["counts"]["ignore"] == 1
 
 
+def test_memory_consolidation_is_idempotent():
+    from aos import consolidate
+    conn = _fresh()
+    engine.run(conn, engine.create_goal(conn, "a"))
+    consolidate.consolidate(conn)
+    n1 = conn.execute("SELECT COUNT(*) c FROM memory WHERE mkey LIKE 'memory.summary:%'").fetchone()["c"]
+    consolidate.consolidate(conn)
+    n2 = conn.execute("SELECT COUNT(*) c FROM memory WHERE mkey LIKE 'memory.summary:%'").fetchone()["c"]
+    assert n1 >= 1 and n1 == n2
+
+
 def test_improve_reentrancy_guard_prevents_nested_suite_runs():
     import aos.improve as imp
     conn = _fresh()
