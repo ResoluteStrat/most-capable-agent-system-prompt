@@ -17,8 +17,10 @@ import tempfile
 import time
 from pathlib import Path
 
-from .. import engine, projectpack
+from .. import engine, projectpack, trace
 from ..db import init_db, jloads, now
+
+GENERATED_DIR = Path(__file__).resolve().parent / "generated"
 
 
 def _fresh():
@@ -898,11 +900,56 @@ def case_memory_consolidation_summarizes_by_kind():
     return ok, f"summaries={n1} idempotent={n1 == n2} write_file='{wf['value'] if wf else None}'"
 
 
+def case_failure_to_guardrail_generates_executable_regression():
+    """The failure loop closes for real: a recurring same-shape failure
+    materializes into a REAL, VERIFIED, replayable regression case — not just a
+    prose note. Self-contained: cleans up its own fixture on entry AND exit so it
+    never changes the case SET seen by other runs (repeat-run stability asserts an
+    identical set of passing case names across runs)."""
+    from .. import improve
+    kind = "gather"
+    fixture_path = GENERATED_DIR / f"regression_{kind}.json"
+    marker_path = GENERATED_DIR / f"regression_{kind}.md"
+
+    def _teardown():
+        fixture_path.unlink(missing_ok=True)
+        marker_path.unlink(missing_ok=True)
+        invalidate_generated_cache()
+
+    _teardown()   # start clean regardless of ambient GEN_DIR state
+    try:
+        conn, _ = _fresh()
+        bad_verification = {"type": "file_exists", "path": "totally-not-a-real-file.md"}
+        for i in range(2):                    # two same-shape failures -> "recurring"
+            gid = engine.create_goal(conn, f"regression source {i}", tasks=[
+                {"title": "recurring failure", "kind": kind, "spec": {"note": "x"},
+                 "verification": bad_verification, "max_attempts": 1}])
+            engine.run(conn, gid)
+        recorded = conn.execute(
+            "SELECT 1 FROM memory WHERE mtype='semantic' AND mkey=?",
+            (f"eval_candidate:{kind}",)).fetchone() is not None
+
+        out = improve.cycle(conn)
+        fixture_ok = fixture_path.exists()
+        gen_key = f"generated_{fixture_path.stem}"
+        generated_present = gen_key in _generated_cases()
+        case_passes = _generated_cases()[gen_key]()[0] if generated_present else False
+
+        ok = (recorded and out.get("action") == "materialize_regression_eval"
+              and out.get("applied") and fixture_ok and generated_present and case_passes)
+        return ok, (f"recorded={recorded} applied={out.get('applied')} fixture_ok={fixture_ok} "
+                   f"generated_present={generated_present} case_passes={case_passes}")
+    finally:
+        _teardown()
+
+
 CASES = {
     "closed_loop": case_closed_loop,
     "cost_breakdown_by_tier_and_hotspots": case_cost_breakdown_by_tier_and_hotspots,
     "sweep_flags_expensive_goal": case_sweep_flags_expensive_goal,
     "memory_consolidation_summarizes_by_kind": case_memory_consolidation_summarizes_by_kind,
+    "failure_to_guardrail_generates_executable_regression":
+        case_failure_to_guardrail_generates_executable_regression,
     "verifier_independent": case_verifier_independent,
     "retry_bounds": case_retry_bounds,
     "safety_deny": case_safety_deny,
@@ -953,13 +1000,86 @@ CASES = {
 # scoring doesn't redundantly re-run sweep/improve work). Correctness against
 # infinite recursion is handled structurally by improve.py's _in_scoring guard,
 # so forgetting to list a new case here can no longer hang the suite.
-META_CASES = {"recurring_sweep", "sweep_flags_expensive_goal"}
+META_CASES = {"recurring_sweep", "sweep_flags_expensive_goal",
+              "failure_to_guardrail_generates_executable_regression"}
+
+
+def _make_regression_case(fixture: dict):
+    """Build a real, replayable case from a failure->guardrail fixture (written by
+    improve.cycle from a recurring failure's captured spec/verification). It does
+    NOT assert the failure is "fixed" — we don't know that. It locks in the safety
+    property around that failure SHAPE: either it now resolves cleanly (done), or
+    it fails closed — quarantined with evidence and a clean trajectory (no
+    orphaned side effect, no silent swallow, no crash)."""
+    def case():
+        conn, _ = _fresh()
+        gid = engine.create_goal(conn, f"[regression] {fixture.get('title', 'replay')}", tasks=[{
+            "title": fixture.get("title", "replay"), "kind": fixture["kind"],
+            "spec": fixture.get("spec", {}),
+            "verification": fixture.get("verification", {"type": "exec_ok"}),
+            "max_attempts": 1,
+        }])
+        engine.run(conn, gid)
+        t = conn.execute("SELECT * FROM tasks WHERE goal_id=?", (gid,)).fetchone()
+        if t["status"] == "done":
+            return True, f"kind={fixture['kind']}: resolved cleanly (done)"
+        quarantined = conn.execute(
+            "SELECT COUNT(*) c FROM quarantine WHERE task_id=?", (t["id"],)).fetchone()["c"] >= 1
+        clean, findings = trace.judge(conn, t["id"])
+        ok = t["status"] == "failed" and quarantined and clean
+        return ok, (f"kind={fixture['kind']}: status={t['status']} quarantined={quarantined} "
+                   f"trace_clean={clean}" + (f" findings={findings}" if findings else ""))
+    return case
+
+
+_gen_cache = None   # cached per-process; see invalidate_generated_cache()
+
+
+def invalidate_generated_cache():
+    """Bust the generated-fixture cache. Call this immediately after writing or
+    removing a regression_*.json fixture (improve.cycle does) so the SAME process
+    sees the change right away. Without a cache, a fixture written mid-run would
+    silently change what _all_cases() returns between consecutive calls within one
+    process — which is exactly what stability() must never observe. A cache with
+    explicit invalidation gives both properties: deterministic within a run
+    (nothing mutates fixtures behind the scenes), and reads fresh disk state
+    across process invocations (a new `aos eval` run picks up prior guardrails)."""
+    global _gen_cache
+    _gen_cache = None
+
+
+def _generated_cases() -> dict:
+    """Regression fixtures auto-registered by improve.cycle
+    (aos/evals/generated/regression_*.json), cached per-process."""
+    global _gen_cache
+    if _gen_cache is None:
+        cases = {}
+        if GENERATED_DIR.is_dir():
+            for f in sorted(GENERATED_DIR.glob("regression_*.json")):
+                try:
+                    fixture = json.loads(f.read_text())
+                except (json.JSONDecodeError, OSError):
+                    continue
+                cases[f"generated_{f.stem}"] = _make_regression_case(fixture)
+        _gen_cache = cases
+    return _gen_cache
+
+
+def _all_cases() -> dict:
+    return {**CASES, **_generated_cases()}
+
+
+def verify_fixture(fixture: dict):
+    """Build + immediately run a regression case from a fixture payload. Used by
+    improve.cycle to prove a newly materialized guardrail actually passes before
+    keeping it — a broken auto-generated case would be worse than none."""
+    return _make_regression_case(fixture)()
 
 
 def run_core_suite():
     """The capability/safety core improve.py scores against (no meta-cases)."""
     results = []
-    for name, fn in CASES.items():
+    for name, fn in _all_cases().items():
         if name in META_CASES:
             continue
         try:
@@ -971,10 +1091,11 @@ def run_core_suite():
 
 
 def run_suite(conn=None, suite="default"):
-    """Run all cases, timing each (time-to-pass). If `conn` given, record to the
-    evals table (cost_ticks column reused to store duration in ms)."""
+    """Run all cases (static + auto-generated regression fixtures), timing each
+    (time-to-pass). If `conn` given, record to the evals table (cost_ticks column
+    reused to store duration in ms)."""
     results = []
-    for name, fn in CASES.items():
+    for name, fn in _all_cases().items():
         t0 = time.perf_counter()
         try:
             passed, detail = fn()

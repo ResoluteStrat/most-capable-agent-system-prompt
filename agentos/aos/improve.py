@@ -17,10 +17,11 @@ self-improvement is deferred until eval coverage is deep enough to protect it
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from . import config, evals
-from .db import ROOT, emit, now
+from .db import ROOT, emit, jloads, now
 
 GEN_DIR = Path(__file__).resolve().parent / "evals" / "generated"
 
@@ -62,9 +63,34 @@ def cycle(conn) -> dict:
                 "note": "no recurring failures to convert into evals"}
 
     kind = cand["mkey"].split(":", 1)[1]
+    payload = jloads(cand["value"], None)
+    fixture = GEN_DIR / f"regression_{kind}.json"
     marker = GEN_DIR / f"regression_{kind}.md"
-    applied = not marker.exists()
-    if applied:
+    applied = not fixture.exists()
+    if applied and isinstance(payload, dict) and "spec" in payload:
+        # a REAL, replayable regression fixture — evals._generated_cases() turns
+        # this into an executable case that locks in "this failure shape fails
+        # closed and gets quarantined", not just a human-facing note. Verify it
+        # actually passes before keeping it: a broken auto-generated case is
+        # worse than none.
+        fixture.write_text(json.dumps(payload, indent=2))
+        evals.invalidate_generated_cache()
+        verified, verify_detail = evals.verify_fixture(payload)
+        if not verified:
+            fixture.unlink(missing_ok=True)
+            evals.invalidate_generated_cache()
+            applied = False
+            emit(conn, "improve.fixture_rejected", failure_kind=kind, detail=verify_detail)
+        else:
+            marker.write_text(
+                f"# Regression guardrail: {kind}\n\n"
+                f"Auto-registered by the self-improvement loop on {now()} after a\n"
+                f"recurring failure.\n\nClaim: {payload.get('reason')}\n\n"
+                f"Verified on materialization: {verify_detail}\n\n"
+                f"Action: a replayable eval case now exists for this failure shape\n"
+                f"(see regression_{kind}.json, loaded by evals._generated_cases()).\n")
+    elif applied:
+        # defensive fallback for a non-JSON legacy candidate — note only, no fixture
         marker.write_text(
             f"# Regression guardrail: {kind}\n\n"
             f"Auto-registered by the self-improvement loop on {now()} after a\n"
@@ -76,6 +102,8 @@ def cycle(conn) -> dict:
     kept = new_pass >= base_pass  # additive marker must never regress the suite
     if not kept and applied:
         marker.unlink(missing_ok=True)
+        fixture.unlink(missing_ok=True)
+        evals.invalidate_generated_cache()
 
     emit(conn, "improve.cycle", failure_kind=kind, applied=applied, kept=kept,
          baseline=f"{base_pass}/{total}", after=f"{new_pass}/{total}")

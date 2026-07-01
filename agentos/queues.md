@@ -32,8 +32,10 @@ file is the at-a-glance operator view. Updated by `aos queues --sync`.
 ## improve
 - (resolved) recurring sweep→improve recursion class — now structurally guarded by
   improve._in_scoring; META_CASES is a perf optimization, not a correctness need.
-- Add a failure→guardrail converter: any task that fails twice the same way
-  auto-creates an eval case. (failure loop)
+- (resolved) failure→guardrail converter — a recurring same-shape failure now
+  materializes into a REAL, verified, replayable eval case (a JSON fixture loaded
+  by evals._generated_cases()), not just a prose note. Verified at materialization
+  time (a broken auto-generated case is rejected, not kept). (failure loop)
 - Replace tick-count cost proxy with real token/cost accounting once an LLM
   executor adapter lands. (cost loop)
 - (resolved) Memory consolidation job — `consolidate.py` rolls episodic outcomes

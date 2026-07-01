@@ -4,7 +4,7 @@ A 5-minute tour. Everything is stdlib Python; run from `agentos/`.
 
 ```bash
 python -m aos selftest      # prove the whole closed loop end-to-end (exit 0 = healthy)
-python -m aos eval          # 45 eval cases — what "working" means, executably
+python -m aos eval          # 47 eval cases — what "working" means, executably
 python -m aos ask "draft an onboarding checklist"   # describe what you want
 python -m aos web           # http://127.0.0.1:8787 — live dashboard (read-only)
 ```
@@ -54,14 +54,14 @@ python -m aos web           # http://127.0.0.1:8787 — live dashboard (read-onl
 ### Meta
 `queues` (momentum queues) · `selftest` · `eval`
 
-## What proves it (45 eval cases, all in `aos/evals/__init__.py`)
+## What proves it (47 eval cases, all in `aos/evals/__init__.py`)
 Each capability has an executable proof. A sampling:
 - **the loop**: `closed_loop`, `verifier_independent` (verifier rejects a lying executor), `retry_bounds`, `dependency_order`.
 - **safety/governance**: `safety_deny`, `autonomy_gates_high_risk`, `autonomy_trust_gate_medium`, `adversarial_input` (instructions-in-data stay inert).
 - **harnesses**: `harness_resumes_after_failure`, `harness_review_blocks_bad_change`, `report_harness_schema_gate`, `browser_qa_rejects_failed_flow`.
 - **reliability (rules 16–22)**: `effect_idempotency`, `saga_rolls_back_on_failure`, `retried_side_effect_applies_once`, `signal_waitpoint_resumes_across_processes`, `quarantine_captures_and_replay_recovers`, `trace_judges_the_path_not_just_outcome`, `failed_task_auto_compensates_side_effect`.
 - **scale**: `two_workers_no_double_execution`.
-- **self-improvement & capability growth**: `intel_ranks_and_promotes`, `workflow_mining_proposes_promotion`, `mined_workflow_promotes_to_usable_skill`, `auto_promotion_is_gated_then_fires`, `cost_breakdown_by_tier_and_hotspots`.
+- **self-improvement & capability growth**: `intel_ranks_and_promotes`, `workflow_mining_proposes_promotion`, `mined_workflow_promotes_to_usable_skill`, `auto_promotion_is_gated_then_fires`, `cost_breakdown_by_tier_and_hotspots`, `failure_to_guardrail_generates_executable_regression` (a recurring failure auto-materializes into a real, verified, replayable regression case — not just a note).
 - **skills**: `claude_code_skill_ingested_and_used`, `skill_create_register_use`, `skill_run_side_effect_compensates`.
 
 Run `python -m aos eval` to see them all pass with timings; the suite is repeat-run stable.

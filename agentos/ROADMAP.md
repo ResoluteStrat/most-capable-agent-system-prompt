@@ -29,7 +29,20 @@ SQLite control plane. Metrics, budgets, audit events, deny-first shell policy.
   gate** — strictly-better-or-revert; equal/worse → revert (default/simpler wins).
   Verified it correctly *rejects* a "be more autonomous" change that would break
   the trust gate. `aos config` / `aos improve --tune`.
-- ✅ failure→eval converter wired into the failure loop (`improve.cycle`).
+- ✅ failure→eval converter wired into the failure loop (`improve.cycle`), and now
+  produces a REAL, replayable regression case (not just a prose note): a recurring
+  same-shape failure's spec/verification is captured (`engine._learn_failure`),
+  and `improve.cycle` materializes it as a JSON fixture
+  (`aos/evals/generated/regression_<kind>.json`) that `evals._generated_cases()`
+  turns into an executable case, locking in "this failure shape fails closed —
+  quarantined with evidence, clean trajectory — or resolves cleanly", never a
+  silent swallow. The new case is VERIFIED at materialization time
+  (`evals.verify_fixture`); a broken auto-generated case is rejected, not kept.
+  Cache with explicit invalidation (`evals.invalidate_generated_cache`) keeps
+  `stability()` deterministic within a process while still reflecting new
+  guardrails across fresh CLI invocations. 1 eval + 1 test (both self-contained:
+  clean up their own fixture on entry AND exit so they never change the case SET
+  other runs see).
 - ⏳ Still deferred: code-editing self-improvement (needs deeper eval coverage to
   protect it) and pass@k under stochastic executors (harness is deterministic).
 

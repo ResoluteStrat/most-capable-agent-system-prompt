@@ -422,6 +422,30 @@ def test_intel_ranks_and_promotes():
     assert d["ranked"][0]["source"] == "Temporal" and d["counts"]["ignore"] == 1
 
 
+def test_failure_to_guardrail_generates_verified_executable_case():
+    kind = "gather"
+    fixture = evals.GENERATED_DIR / f"regression_{kind}.json"
+    marker = evals.GENERATED_DIR / f"regression_{kind}.md"
+    fixture.unlink(missing_ok=True); marker.unlink(missing_ok=True)
+    evals.invalidate_generated_cache()
+    try:
+        conn = _fresh()
+        bad = {"type": "file_exists", "path": "totally-not-a-real-file.md"}
+        for i in range(2):
+            engine.run(conn, engine.create_goal(conn, f"r{i}", tasks=[
+                {"title": "recurring failure", "kind": kind, "spec": {"note": "x"},
+                 "verification": bad, "max_attempts": 1}]))
+        out = improve.cycle(conn)
+        assert out["action"] == "materialize_regression_eval" and out["applied"]
+        assert fixture.exists()
+        gen_key = f"generated_{fixture.stem}"
+        assert gen_key in evals._generated_cases()
+        assert evals._generated_cases()[gen_key]()[0] is True   # the new case itself passes
+    finally:
+        fixture.unlink(missing_ok=True); marker.unlink(missing_ok=True)
+        evals.invalidate_generated_cache()
+
+
 def test_memory_consolidation_is_idempotent():
     from aos import consolidate
     conn = _fresh()

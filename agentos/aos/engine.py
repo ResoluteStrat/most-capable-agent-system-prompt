@@ -351,7 +351,10 @@ def _learn_success(conn, t):
 
 def _learn_failure(conn, t, reason):
     """Failure loop: convert a repeated same-shape failure into an eval case +
-    drop trust. If this exact (kind, reason-shape) failed before, flag it."""
+    drop trust. If this exact (kind, reason-shape) failed before, flag it.
+
+    The eval_candidate payload is JSON (not prose) so improve.cycle can rebuild a
+    REAL, replayable regression fixture from it — not just a note to a human."""
     for tag in jloads(t["skill_tags"], []):
         _bump_trust(conn, tag, -0.05)
     key = f"failure:{t['kind']}"
@@ -360,9 +363,12 @@ def _learn_failure(conn, t, reason):
     if prior:
         conn.execute("UPDATE memory SET uses=uses+1 WHERE id=?", (prior["id"],))
         conn.commit()
-        # second occurrence -> guardrail: register an eval candidate
-        memory.record(conn, "semantic", f"eval_candidate:{t['kind']}",
-                      f"Recurring failure for kind={t['kind']}: {reason}. Add a regression eval.",
+        # second occurrence -> guardrail: register an eval candidate with enough
+        # detail (spec/verification/title) to replay the exact failure SHAPE.
+        payload = jdumps({"kind": t["kind"], "reason": reason, "title": t["title"],
+                          "spec": jloads(t["spec"], {}),
+                          "verification": jloads(t["verification"], {"type": "exec_ok"})})
+        memory.record(conn, "semantic", f"eval_candidate:{t['kind']}", payload,
                       tags=["eval", "guardrail"], provenance=f"task:{t['id']}", confidence=0.8)
     else:
         memory.record(conn, "semantic", key, f"first failure for kind={t['kind']}: {reason}",
