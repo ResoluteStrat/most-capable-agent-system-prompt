@@ -10,6 +10,14 @@ Paste this prompt into your coding agent of choice - Claude Code, Codex, Cursor,
 
 ![Most Capable Agent System Architecture](most_capable_agent_system_architecture.svg)
 
+### Companion: the judgment layer
+
+The prompt below builds the **system** — harnesses, task graphs, verification gates, memory. Three companion files govern the **judgment inside** whatever agent runs it (how it reasons before committing to any claim, plan, or answer):
+
+- [OPERATING-MANUAL.md](OPERATING-MANUAL.md) — the craft in full: eight disciplines, each with procedure, worked example, and the failure it prevents
+- [SYSTEM-PROMPT.md](SYSTEM-PROMPT.md) — the same disciplines compiled into a paste-ready prompt (load it alongside the prompt below; they don't overlap)
+- [DRILLS.md](DRILLS.md) — nine calibration drills that test whether the disciplines actually took
+
 ## The Prompt
 
 ```text
